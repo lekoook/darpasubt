@@ -47,9 +47,11 @@ static uint8 rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE
 #define RESP_MSG_TS_LEN 4
 #define INIT_MSG_TYPE_IDX 10
 #define RESP_MSG_TYPE_IDX 10
+// Frames related
 #define MSG_TYPE_RNG_REQ 0
 #define MSG_TYPE_DATA 1
 #define MSG_TYPE_ACK 2
+#define ACK_EXP_COUNT 3 // Expected number of acknowledgements for each cycle.
 /* Frame sequence number, incremented after each transmission. */
 static uint8 frame_seq_nb = 0;
 
@@ -80,6 +82,8 @@ static volatile int tx_int_flag = 0 ; // Transmit success interrupt flag
 static volatile int to_int_flag = 0 ; // Timeout interrupt flag
 static volatile int er_int_flag = 0 ; // Error interrupt flag 
 static volatile int ack_rng_flag = 0 ; // Receive acknowledgement success flag
+static volatile int data_flag = 0 ; // Receive data flag
+static volatile int wait_ack_flag = 0 ; // Wait ACK flag
 
 /*Transactions Counters */
 static volatile uint8 req_count = 0 ; // Successful transmit counter
@@ -99,23 +103,27 @@ int ds_twr_ma_run(void)
 {
   #ifdef USE_DS_TWR_MA
 
-  // Increase range request counter and write to frame.
-  req_count++;
-  req_rng_msg[ALL_MSG_SN_IDX] = req_count;
-  // Write transmission frame data and prepare transmission.
-  dwt_writetxdata(sizeof(req_rng_msg), req_rng_msg, 0); /* Zero offset in TX buffer. */
-  dwt_writetxfctrl(sizeof(req_rng_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+  // Begin each range as long as we are not waiting for acknowledgements.
+  if (!wait_ack_flag)
+  {
+    // Increase range request counter and write to frame.
+    req_count++;
+    req_rng_msg[ALL_MSG_SN_IDX] = req_count;
+    // Write transmission frame data and prepare transmission.
+    dwt_writetxdata(sizeof(req_rng_msg), req_rng_msg, 0); /* Zero offset in TX buffer. */
+    dwt_writetxfctrl(sizeof(req_rng_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
 
-  // Start transmission.
-  dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
+    // Start transmission.
+    dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
 
-  /*Waiting for transmission success flag*/
-  while (!(tx_int_flag)) {};
+    /*Waiting for transmission success flag*/
+    while (!(tx_int_flag)) {};
 
-  printf("(I) Range Request # : %d\r\n", req_count);
+    // printf("(I) Range Request # : %d\r\n", req_count);
 
-  /*Reseting tx interrupt flag*/
-  tx_int_flag = 0;
+    /*Reseting tx interrupt flag*/
+    tx_int_flag = 0;
+  }
 
   /* Now We wait for acknowledgements from responder. */
   while(!(ack_rng_flag || to_int_flag|| er_int_flag)) {};
@@ -125,6 +133,13 @@ int ds_twr_ma_run(void)
     er_int_flag = 0;
     printf("RX error\r\n");
     dwt_rxreset();
+    // Reset all the flags for next range cycle.
+    wait_ack_flag = 0;
+    data_flag = 0;
+    ack_rng_flag = 0;
+    tx_int_flag = 0;
+    to_int_flag = 0;
+    er_int_flag = 0;
     return 0;
   }
 
@@ -133,6 +148,13 @@ int ds_twr_ma_run(void)
     to_int_flag = 0;
     printf("Timeout\r\n");
     dwt_rxreset();
+    // Reset all the flags for next range cycle.
+    wait_ack_flag = 0;
+    data_flag = 0;
+    ack_rng_flag = 0;
+    tx_int_flag = 0;
+    to_int_flag = 0;
+    er_int_flag = 0;
     return 0;
   }
 
@@ -150,25 +172,43 @@ int ds_twr_ma_run(void)
     // Resetting range acknowledgement flag.
     ack_rng_flag = 0;
 
+    if (rng_ack_count == ACK_EXP_COUNT)
+    {
+      data_flag = 1;
+      wait_ack_flag = 0;
+    }
+    else
+    {
+      // Re-enable RX for next ACK.
+      dwt_rxenable(DWT_START_RX_IMMEDIATE);
+
+      wait_ack_flag = 1;
+    }
   }
 
-  /* Now we send data to the responder. */
-  // Increase data count and write to frame.
-  data_count++;
-  data_msg[ALL_MSG_SN_IDX] = data_count;
-  // Write transmission frame data and prepare transmission.
-  dwt_writetxdata(sizeof(data_msg), data_msg, 0); /* Zero offset in TX buffer. */
-  dwt_writetxfctrl(sizeof(data_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+  if (data_flag)
+  {
+    /* Now we send data to the responder. */
+    // Increase data count and write to frame.
+    data_count++;
+    data_msg[ALL_MSG_SN_IDX] = data_count;
+    // Write transmission frame data and prepare transmission.
+    dwt_writetxdata(sizeof(data_msg), data_msg, 0); /* Zero offset in TX buffer. */
+    dwt_writetxfctrl(sizeof(data_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
 
-  // Start transmission.
-  dwt_starttx(DWT_START_TX_IMMEDIATE);
+    // Start transmission.
+    dwt_starttx(DWT_START_TX_IMMEDIATE);
 
-  /*Waiting for transmission success flag*/
-  while (!(tx_int_flag)) {};
+    /*Waiting for transmission success flag*/
+    while (!(tx_int_flag)) {};
 
-  printf("(I) Data Outgoing # : %d\r\n", data_count);
+    // printf("(I) Data Outgoing # : %d\r\n", data_count);
 
-  deca_sleep(30);
+    data_flag = 0;
+
+    deca_sleep(30);
+  }
+
 
   #endif
 
