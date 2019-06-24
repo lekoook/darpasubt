@@ -27,26 +27,35 @@
 #include "deca_regs.h"
 #include "port_platform.h"
 #include "ds_twr_ma_init_main.h"
+#include "timestamper.h"
 
 #define APP_NAME "DS TWR MA INITIATOR"
 
 /* Inter-ranging delay period, in milliseconds. */
 #define RNG_DELAY_MS 250
 
+/* UWB microsecond (uus) to device time unit (dtu, around 15.65 ps) conversion factor.
+* 1 uus = 512 / 499.2 ?s and 1 ?s = 499.2 * 128 dtu. */
+#define UUS_TO_DWT_TIME 65536
+// Time between initiator's first TX and second TX. In microseconds.
+#define FIRST_TO_SECOND_TX_UUS  43700
+
 /* Frames used in the ranging process. See NOTE 1,2 below. */
 static uint8 req_rng_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0xE0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-static uint8 data_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'D', 'A', 'T', 'A', 0xE0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint8 data_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'D', 'A', 'T', 'A', 0xE0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static uint8 ack_rng_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'R', 'E', 'Q', 'R', 0xE0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static uint8 rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 /* Length of the common part of the message (up to and including the function code, see NOTE 1 below). */
 #define ALL_MSG_COMMON_LEN 10
 /* Indexes to access some of the fields in the frames defined above. */
 #define ALL_MSG_SN_IDX 2
-#define RESP_MSG_POLL_RX_TS_IDX 10
-#define RESP_MSG_RESP_TX_TS_IDX 14
-#define RESP_MSG_TS_LEN 4
 #define INIT_MSG_TYPE_IDX 10
 #define RESP_MSG_TYPE_IDX 10
+#define DATA_MSG_LEN 38
+#define DATA_MSG_TS_LEN 5
+#define DATA_MSG_TX_1_IDX 11
+#define DATA_MSG_TX_2_IDX 16
+#define DATA_MSG_RX_1_IDX 21
 // Frames related
 #define MSG_TYPE_RNG_REQ 0
 #define MSG_TYPE_DATA 1
@@ -57,15 +66,11 @@ static uint8 frame_seq_nb = 0;
 
 /* Buffer to store received response message.
 * Its size is adjusted to longest frame that this example code is supposed to handle. */
-#define RX_BUF_LEN 20
+#define RX_BUF_LEN 38
 static uint8 rx_buffer[RX_BUF_LEN];
 
 /* Hold copy of status register state here for reference so that it can be examined at a debug breakpoint. */
 static uint32 status_reg = 0;
-
-/* UWB microsecond (uus) to device time unit (dtu, around 15.65 ps) conversion factor.
-* 1 uus = 512 / 499.2 �s and 1 �s = 499.2 * 128 dtu. */
-#define UUS_TO_DWT_TIME 65536
 
 /* Speed of light in air, in metres per second. */
 #define SPEED_OF_LIGHT 299702547
@@ -75,20 +80,30 @@ static double tof;
 static double distance;
 
 /* Declaration of static functions. */
-static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts);
+static void resetFlags(void);
+static void writeDataTs(uint8 *field, const uint64 ts, uint16 len);
 
 /*Interrupt flag*/
-static volatile int tx_int_flag = 0 ; // Transmit success interrupt flag
-static volatile int to_int_flag = 0 ; // Timeout interrupt flag
-static volatile int er_int_flag = 0 ; // Error interrupt flag 
-static volatile int ack_rng_flag = 0 ; // Receive acknowledgement success flag
-static volatile int data_flag = 0 ; // Receive data flag
-static volatile int wait_ack_flag = 0 ; // Wait ACK flag
+static volatile int tx_int_flag = 0; // Transmit success interrupt flag
+static volatile int to_int_flag = 0; // Timeout interrupt flag
+static volatile int er_int_flag = 0; // Error interrupt flag 
+static volatile int ack_rng_flag = 0; // Receive acknowledgement success flag
+static volatile int data_flag = 0; // Receive data flag
+static volatile int wait_ack_flag = 0; // Wait ACK flag
 
 /*Transactions Counters */
 static volatile uint8 req_count = 0 ; // Successful transmit counter
 static volatile uint8 rng_ack_count = 0 ; // Successful acknowledgement counter 
 static volatile uint8 data_count = 0 ; // Successful data message counter
+
+/* TX and RX timestamps for distance calculation. */
+uint64 initTx1 = 0;
+uint64 initTx2 = 0;
+uint64 initAckRx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
+uint64 dataMsgDly = 0;
+uint64 dataMsgTs = 0;
+uint32 dataTxDly = 0;
+extern uint16 antDelay;
 
 /*! ------------------------------------------------------------------------------------------------------------------
 * @fn main()
@@ -121,6 +136,9 @@ int ds_twr_ma_run(void)
 
     // printf("(I) Range Request # : %d\r\n", req_count);
 
+    // Read the TX timestamp.
+    initTx1 = getTxTimestampU64();
+
     /*Reseting tx interrupt flag*/
     tx_int_flag = 0;
   }
@@ -134,12 +152,7 @@ int ds_twr_ma_run(void)
     printf("RX error\r\n");
     dwt_rxreset();
     // Reset all the flags for next range cycle.
-    wait_ack_flag = 0;
-    data_flag = 0;
-    ack_rng_flag = 0;
-    tx_int_flag = 0;
-    to_int_flag = 0;
-    er_int_flag = 0;
+    resetFlags();
     return 0;
   }
 
@@ -149,12 +162,7 @@ int ds_twr_ma_run(void)
     printf("Timeout\r\n");
     dwt_rxreset();
     // Reset all the flags for next range cycle.
-    wait_ack_flag = 0;
-    data_flag = 0;
-    ack_rng_flag = 0;
-    tx_int_flag = 0;
-    to_int_flag = 0;
-    er_int_flag = 0;
+    resetFlags();
     return 0;
   }
 
@@ -168,6 +176,9 @@ int ds_twr_ma_run(void)
     {
       printf("(I) Ack # : %d\r\n", rng_ack_count);
     }
+
+    // Read the RX timestamp for each successful acknowledgement received.
+    initAckRx[rng_ack_count - 1] = getRxTimestampU64();
 
     // Resetting range acknowledgement flag.
     ack_rng_flag = 0;
@@ -188,6 +199,21 @@ int ds_twr_ma_run(void)
 
   if (data_flag)
   {
+    /* First we will write all the timestamps required by responder to data message. */
+    // Calculate the delayed TX timestamp for data message TX.
+    uint64 txInterval = FIRST_TO_SECOND_TX_UUS;
+    uint64 conv = UUS_TO_DWT_TIME;
+    dataMsgDly = (initTx1 + (txInterval * conv));
+    dataTxDly = dataMsgDly >> 8;
+    dataMsgTs = dataMsgDly + antDelay;
+    writeDataTs(&data_msg[DATA_MSG_TX_1_IDX], initTx1, DATA_MSG_TS_LEN);
+    writeDataTs(&data_msg[DATA_MSG_TX_2_IDX], dataMsgTs, DATA_MSG_TS_LEN);
+    int i;
+    for (i = 0; i < ACK_EXP_COUNT; i++)
+    {
+      writeDataTs(&data_msg[DATA_MSG_RX_1_IDX + (i * DATA_MSG_TS_LEN)], initAckRx[i], DATA_MSG_TS_LEN);
+    }
+    
     /* Now we send data to the responder. */
     // Increase data count and write to frame.
     data_count++;
@@ -196,15 +222,22 @@ int ds_twr_ma_run(void)
     dwt_writetxdata(sizeof(data_msg), data_msg, 0); /* Zero offset in TX buffer. */
     dwt_writetxfctrl(sizeof(data_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
 
+    
+    dwt_setdelayedtrxtime(dataTxDly);
+
     // Start transmission.
-    dwt_starttx(DWT_START_TX_IMMEDIATE);
+    dwt_starttx(DWT_START_TX_DELAYED);
 
     /*Waiting for transmission success flag*/
     while (!(tx_int_flag)) {};
 
-    // printf("(I) Data Outgoing # : %d\r\n", data_count);
+    printf("(I) Data Outgoing # : %d\r\n", data_count);
 
+    // Resetting the data flag.
     data_flag = 0;
+
+    // Resetting TX interrupt flag.
+    tx_int_flag = 0;
 
     deca_sleep(30);
   }
@@ -384,28 +417,35 @@ void tx_conf_cb(const dwt_cb_data_t *cb_data)
   /* TESTING BREAKPOINT LOCATION #4 */
 }
 
-
-/*! ------------------------------------------------------------------------------------------------------------------
-* @fn resp_msg_get_ts()
-*
-* @brief Read a given timestamp value from the response message. In the timestamp fields of the response message, the
-*        least significant byte is at the lower address.
-*
-* @param  ts_field  pointer on the first byte of the timestamp field to get
-*         ts  timestamp value
-*
-* @return none
-*/
-static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts)
+/**
+ * @brief Resets all range state flags to their default value.
+ * 
+ */
+static void resetFlags(void)
 {
-  int i;
-  *ts = 0;
-  for (i = 0; i < RESP_MSG_TS_LEN; i++)
-  {
-  *ts += ts_field[i] << (i * 8);
-  }
+  wait_ack_flag = 0;
+  data_flag = 0;
+  ack_rng_flag = 0;
+  tx_int_flag = 0;
+  to_int_flag = 0;
+  er_int_flag = 0;
 }
 
+/**
+ * @brief Writes a timestamp into the data message frame field that will be transmitted.
+ * 
+ * @param field pointer to the byte in the field to begin filling from.
+ * @param ts timestamp value to fill up with.
+ * @param len length of the timestamp in bytes.
+ */
+static void writeDataTs(uint8 *field, const uint64 ts, uint16 len)
+{
+  int i;
+  for (i = 0; i < len; i++)
+  {
+    field[i] = (ts >> (i * 8)) & 0xFF;
+  }
+}
 
 /**@brief SS TWR Initiator task entry function.
 *

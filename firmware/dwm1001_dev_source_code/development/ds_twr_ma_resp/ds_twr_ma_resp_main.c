@@ -27,6 +27,7 @@
 #include "deca_regs.h"
 #include "port_platform.h"
 #include "ds_twr_ma_resp_main.h"
+#include "timestamper.h"
 
 #define APP_NAME "DS TWR MA RESPONDER"
 
@@ -37,18 +38,17 @@
 // We set byte 10 to '0' for range request and '1' for data message.
 // TODO: Use the first 10 bytes to differentiate instead.
 static uint8 req_rng_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0xE0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-static uint8 data_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'D', 'A', 'T', 'A', 0xE0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint8 data_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'D', 'A', 'T', 'A', 0xE0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static uint8 ack_rng_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'R', 'E', 'Q', 'R', 0xE0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static uint8 rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 /* Length of the common part of the message (up to and including the function code, see NOTE 1 below). */
 #define ALL_MSG_COMMON_LEN 10
 /* Indexes to access some of the fields in the frames defined above. */
 #define ALL_MSG_SN_IDX 2
-#define RESP_MSG_POLL_RX_TS_IDX 10
-#define RESP_MSG_RESP_TX_TS_IDX 14
 #define RESP_MSG_TS_LEN 4
 #define INIT_MSG_TYPE_IDX 10
 #define RESP_MSG_TYPE_IDX 10
+#define DATA_MSG_LEN 38
 // Frames related
 #define MSG_TYPE_RNG_REQ 0
 #define MSG_TYPE_DATA 1
@@ -57,15 +57,11 @@ static uint8 rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE
 
 /* Buffer to store received response message.
 * Its size is adjusted to longest frame that this example code is supposed to handle. */
-#define RX_BUF_LEN 20
+#define RX_BUF_LEN 38
 static uint8 rx_buffer[RX_BUF_LEN];
 
 /* Hold copy of status register state here for reference so that it can be examined at a debug breakpoint. */
 static uint32 status_reg = 0;
-
-/* UWB microsecond (uus) to device time unit (dtu, around 15.65 ps) conversion factor.
-* 1 uus = 512 / 499.2 �s and 1 �s = 499.2 * 128 dtu. */
-#define UUS_TO_DWT_TIME 65536
 
 /* Speed of light in air, in metres per second. */
 #define SPEED_OF_LIGHT 299702547
@@ -76,20 +72,26 @@ static double distance;
 
 /* Declaration of static functions. */
 static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts);
+static void resetFlags(void);
 
 /*Interrupt flag*/
-static volatile int tx_int_flag = 0 ; // Transmit success interrupt flag
-static volatile int to_int_flag = 0 ; // Timeout interrupt flag
-static volatile int er_int_flag = 0 ; // Error interrupt flag 
-static volatile int rx_int_flag = 0 ; // Receive interrupt flag
-static volatile int req_rng_flag = 0 ; // Receive request range flag
-static volatile int data_flag = 0 ; // Receive data flag
-static volatile int end_flag = 1 ; // Range cycle end flag
+static volatile int tx_int_flag = 0; // Transmit success interrupt flag
+static volatile int to_int_flag = 0; // Timeout interrupt flag
+static volatile int er_int_flag = 0; // Error interrupt flag 
+static volatile int rx_int_flag = 0; // Receive interrupt flag
+static volatile int req_rng_flag = 0; // Receive request range flag
+static volatile int data_flag = 0; // Receive data flag
+static volatile int end_flag = 1; // Range cycle end flag. Has default value of 1 to begin cycle.
 
 /*Transactions Counters */
 static volatile uint8 req_count = 0 ; // Successful range requests counter 
 static volatile uint8 rng_ack_count = 0 ; // Successful acknowledgement counter
 static volatile uint8 data_count = 0 ; // Successful data message counter
+
+/* TX and RX timestamps for distance calculation. */
+uint64 respAckTx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
+uint64 respRx1 = 0;
+uint64 respRx2 = 0;
 
 
 /*! ------------------------------------------------------------------------------------------------------------------
@@ -109,20 +111,17 @@ int ds_twr_ma_run(void)
   /* Wait for reception, timeout or error interrupt flag*/
   while (!(rx_int_flag || to_int_flag|| er_int_flag)) {};
 
+  //Reseting range request interrupt flag.
+  rx_int_flag = 0;
+
   if (er_int_flag)
   {
     er_int_flag = 0;
-    printf("RX error\r\n");
+    // printf("RX error\r\n");
     dwt_rxreset();
 
     // Reset all the flag for next range cycle.
-    tx_int_flag = 0;
-    to_int_flag = 0;
-    er_int_flag = 0;
-    rx_int_flag = 0;
-    req_rng_flag = 0;
-    data_flag = 0;
-    end_flag = 1; 
+    resetFlags();
 
     dwt_rxenable(DWT_START_RX_IMMEDIATE);
     deca_sleep(30);
@@ -132,17 +131,11 @@ int ds_twr_ma_run(void)
   if (to_int_flag)
   {
     to_int_flag = 0;
-    printf("Timeout\r\n");
+    // printf("Timeout\r\n");
     dwt_rxreset();
 
     // Reset all the flag for next range cycle.
-    tx_int_flag = 0;
-    to_int_flag = 0;
-    er_int_flag = 0;
-    rx_int_flag = 0;
-    req_rng_flag = 0;
-    data_flag = 0;
-    end_flag = 1;
+    resetFlags();
 
     dwt_rxenable(DWT_START_RX_IMMEDIATE);
     deca_sleep(30);
@@ -159,7 +152,8 @@ int ds_twr_ma_run(void)
     {
       if (!end_flag)
       {
-        printf("Cycle disrupted\r\n");
+        end_flag = 1;
+        // printf("Cycle disrupted\r\n");
         dwt_rxreset();
         dwt_rxenable(DWT_START_RX_IMMEDIATE);
         deca_sleep(30);
@@ -168,6 +162,7 @@ int ds_twr_ma_run(void)
       else
       {
         req_rng_flag = 1;
+        end_flag = 0;
       }
     }
     else if (rx_buffer[INIT_MSG_TYPE_IDX] == MSG_TYPE_DATA)
@@ -176,24 +171,14 @@ int ds_twr_ma_run(void)
     }
     else
     {
-      printf("Invalid message\r\n");
+      // printf("Invalid message\r\n");
       dwt_rxreset();
       dwt_rxenable(DWT_START_RX_IMMEDIATE);
       deca_sleep(30);
       return 0;
     }
   }
-
-  //Reseting range request interrupt flag.
-  rx_int_flag = 0;
   
-  /* A frame has been received, read it into the local buffer. */
-  frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
-  if (frame_len <= RX_BUF_LEN)
-  {
-    dwt_readrxdata(rx_buffer, frame_len, 0);
-  }
-
   if (req_rng_flag)
   {
     /* Check that the frame is the expected range request from the companion "DS TWR MA Initiator" example.
@@ -205,10 +190,13 @@ int ds_twr_ma_run(void)
       printf("(R) Range Request # : %d\r\n", req_count);
     }
 
+    // Read the RX timestamp for receiving range request.
+    respRx1 = getRxTimestampU64();
+
     /* Now we write the range acknowledgement message back to intiator. */
     while (rng_ack_count < ACK_EXP_COUNT)
     {
-      deca_sleep(10);
+      deca_sleep(1); // We sleep 1ms because immediate TX is too fast for Initiator to catch some ACK msgs.
       // Increase ack counter and write to message.
       rng_ack_count++;
       ack_rng_msg[ALL_MSG_SN_IDX] = rng_ack_count;
@@ -224,9 +212,15 @@ int ds_twr_ma_run(void)
 
       printf("(R) Ack # : %d\r\n", rng_ack_count);
 
-      // Resetting range request flag.
-      req_rng_flag = 0;
+      // Read the TX timestamp for each successful acknowledgement.
+      respAckTx[rng_ack_count - 1] = getTxTimestampU64();
+
+      // Resetting TX interrupt flag.
+      tx_int_flag = 0;
     }
+
+    // Resetting range request flag.
+    req_rng_flag = 0;
 
     // Resetting the acknowledgement count.
     rng_ack_count = 0;
@@ -243,8 +237,11 @@ int ds_twr_ma_run(void)
     rx_buffer[ALL_MSG_SN_IDX] = 0;
     if (memcmp(rx_buffer, data_msg, ALL_MSG_COMMON_LEN) == 0)
     {
-      printf("(R) Data Incoming # : %d\r\n", data_count);
+      // printf("(R) Data Incoming # : %d\r\n", data_count);
     }
+
+    // Read the RX timestamp for receiving data message from initiator.
+    respRx2 = getRxTimestampU64();
 
     // Set the cycle end flag.
     end_flag = 1;
@@ -439,6 +436,16 @@ static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts)
   }
 }
 
+static void resetFlags(void)
+{
+  tx_int_flag = 0;
+  to_int_flag = 0;
+  er_int_flag = 0;
+  rx_int_flag = 0;
+  req_rng_flag = 0;
+  data_flag = 0;
+  end_flag = 1;
+}
 
 /**@brief SS TWR Initiator task entry function.
 *
