@@ -49,6 +49,10 @@ static uint8 rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE
 #define INIT_MSG_TYPE_IDX 10
 #define RESP_MSG_TYPE_IDX 10
 #define DATA_MSG_LEN 38
+#define DATA_MSG_TS_LEN 5
+#define DATA_MSG_TX_1_IDX 11
+#define DATA_MSG_TX_2_IDX 16
+#define DATA_MSG_RX_1_IDX 21
 // Frames related
 #define MSG_TYPE_RNG_REQ 0
 #define MSG_TYPE_DATA 1
@@ -58,7 +62,7 @@ static uint8 rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE
 /* Buffer to store received response message.
 * Its size is adjusted to longest frame that this example code is supposed to handle. */
 #define RX_BUF_LEN 38
-static uint8 rx_buffer[RX_BUF_LEN];
+uint8 rx_buffer[RX_BUF_LEN];
 
 /* Hold copy of status register state here for reference so that it can be examined at a debug breakpoint. */
 static uint32 status_reg = 0;
@@ -71,7 +75,7 @@ static double tof;
 static double distance;
 
 /* Declaration of static functions. */
-static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts);
+static void resp_msg_get_ts(uint8 *ts_field, uint64 *ts);
 static void resetFlags(void);
 
 /*Interrupt flag*/
@@ -92,7 +96,9 @@ static volatile uint8 data_count = 0 ; // Successful data message counter
 uint64 respAckTx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
 uint64 respRx1 = 0;
 uint64 respRx2 = 0;
-
+uint64 initTx1 = 0;
+uint64 initTx2 = 0;
+uint64 initAckRx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
 
 /*! ------------------------------------------------------------------------------------------------------------------
 * @fn main()
@@ -168,6 +174,7 @@ int ds_twr_ma_run(void)
     else if (rx_buffer[INIT_MSG_TYPE_IDX] == MSG_TYPE_DATA)
     {
       data_flag = 1;
+      uint32 reg = dwt_read32bitreg(SYS_STATUS_ID);
     }
     else
     {
@@ -248,6 +255,18 @@ int ds_twr_ma_run(void)
     
     // Re-enable receiver for next range request.
     dwt_rxenable(DWT_START_RX_IMMEDIATE);
+
+    // ISSUE: Getting garbage values. Check TX correctly and retrieve algo.
+    // Get all the timestamps.
+    resp_msg_get_ts(&rx_buffer[DATA_MSG_TX_1_IDX], &initTx1);
+    resp_msg_get_ts(&rx_buffer[DATA_MSG_TX_2_IDX], &initTx2);
+    int i;
+    for (i = 0; i < ACK_EXP_COUNT; i++)
+    {
+      resp_msg_get_ts(&rx_buffer[DATA_MSG_RX_1_IDX + (i * DATA_MSG_TS_LEN)], &initAckRx[i]);
+    }
+
+    // Calculate the distance.
   }
 
 
@@ -426,13 +445,16 @@ void tx_conf_cb(const dwt_cb_data_t *cb_data)
 *
 * @return none
 */
-static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts)
+static void resp_msg_get_ts(uint8 *ts_field, uint64 *ts)
 {
   int i;
   *ts = 0;
-  for (i = 0; i < RESP_MSG_TS_LEN; i++)
+  for (i = 0; i < DATA_MSG_TS_LEN; i++)
   {
-  *ts += ts_field[i] << (i * 8);
+    // Make sure to cast ts_field element to uint64.
+    // Shifting uint8 variables by 32 bits is UNDEFINED BEHAVIOUR!
+    uint64 temp = (uint64)ts_field[i] << (i * 8);
+    *ts += (temp);
   }
 }
 
