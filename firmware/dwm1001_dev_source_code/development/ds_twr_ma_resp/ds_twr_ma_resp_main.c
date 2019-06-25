@@ -34,6 +34,10 @@
 /* Inter-ranging delay period, in milliseconds. */
 #define RNG_DELAY_MS 250
 
+/* UWB microsecond (uus) to device time unit (dtu, around 15.65 ps) conversion factor.
+* 1 uus = 512 / 499.2 ?s and 1 ?s = 499.2 * 128 dtu. */
+#define UUS_TO_DWT_TIME 65536
+
 /* Frames used in the ranging process. See NOTE 1,2 below. */
 // We set byte 10 to '0' for range request and '1' for data message.
 // TODO: Use the first 10 bytes to differentiate instead.
@@ -77,6 +81,14 @@ static double distance;
 /* Declaration of static functions. */
 static void resp_msg_get_ts(uint8 *ts_field, uint64 *ts);
 static void resetFlags(void);
+static double calcDist(
+  uint64 initAckRx[ACK_EXP_COUNT],
+  uint64 respAckTx[ACK_EXP_COUNT],
+  uint64 initTx1,
+  uint64 initTx2,
+  uint64 respRx1,
+  uint64 respRx2
+  );
 
 /*Interrupt flag*/
 static volatile int tx_int_flag = 0; // Transmit success interrupt flag
@@ -93,12 +105,16 @@ static volatile uint8 rng_ack_count = 0 ; // Successful acknowledgement counter
 static volatile uint8 data_count = 0 ; // Successful data message counter
 
 /* TX and RX timestamps for distance calculation. */
-uint64 respAckTx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
-uint64 respRx1 = 0;
-uint64 respRx2 = 0;
-uint64 initTx1 = 0;
-uint64 initTx2 = 0;
-uint64 initAckRx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
+volatile uint64 respAckTx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
+volatile uint64 respRx1 = 0;
+volatile uint64 respRx2 = 0;
+volatile uint64 initTx1 = 0;
+volatile uint64 initTx2 = 0;
+volatile uint64 initAckRx[ACK_EXP_COUNT + 5] = {0}; // Plus 5 as buffer.
+volatile double initRounds[ACK_EXP_COUNT];
+volatile double initReplies[ACK_EXP_COUNT];
+volatile double respRounds[ACK_EXP_COUNT];
+volatile double respReplies[ACK_EXP_COUNT];
 
 /*! ------------------------------------------------------------------------------------------------------------------
 * @fn main()
@@ -116,13 +132,17 @@ int ds_twr_ma_run(void)
 
   /* Wait for reception, timeout or error interrupt flag*/
   while (!(rx_int_flag || to_int_flag|| er_int_flag)) {};
-
   //Reseting range request interrupt flag.
+
   rx_int_flag = 0;
 
   if (er_int_flag)
   {
     er_int_flag = 0;
+
+    /* Clear RX error/timeout events in the DW1000 status register. */
+    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_ERR);
+    
     // printf("RX error\r\n");
     dwt_rxreset();
 
@@ -137,6 +157,10 @@ int ds_twr_ma_run(void)
   if (to_int_flag)
   {
     to_int_flag = 0;
+
+    /* Clear RX error/timeout events in the DW1000 status register. */
+    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO);
+    
     // printf("Timeout\r\n");
     dwt_rxreset();
 
@@ -147,6 +171,9 @@ int ds_twr_ma_run(void)
     deca_sleep(30);
     return 0;
   }
+
+  /* Clear good RX frame event in the DW1000 status register. */
+  dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG);
 
   /* A frame has been received, read it into the local buffer. */
   frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
@@ -256,7 +283,7 @@ int ds_twr_ma_run(void)
     // Re-enable receiver for next range request.
     dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
-    // ISSUE: Getting garbage values. Check TX correctly and retrieve algo.
+    // ISSUE: Getting garbage values after first cycle. Check retrieve algo and rx_buffer.
     // Get all the timestamps.
     resp_msg_get_ts(&rx_buffer[DATA_MSG_TX_1_IDX], &initTx1);
     resp_msg_get_ts(&rx_buffer[DATA_MSG_TX_2_IDX], &initTx2);
@@ -267,6 +294,9 @@ int ds_twr_ma_run(void)
     }
 
     // Calculate the distance.
+    // double distance = calcDist(initAckRx, respAckTx, initTx1, initTx2, respRx1, respRx2);
+
+    printf("Distance: %lf\r\n", distance);
   }
 
 
@@ -458,6 +488,10 @@ static void resp_msg_get_ts(uint8 *ts_field, uint64 *ts)
   }
 }
 
+/**
+ * @brief Resets all ranging state flags.
+ * 
+ */
 static void resetFlags(void)
 {
   tx_int_flag = 0;
@@ -467,6 +501,66 @@ static void resetFlags(void)
   req_rng_flag = 0;
   data_flag = 0;
   end_flag = 1;
+}
+
+/**
+ * @brief Calculates the distance between two nodes given their timestamps information.
+ * 
+ * @param initAckRx pointer to the array of timestamps for initiator receiving ACK from responder.
+ * @param respAckTx pointer to the array of timestamps for responder sending ACK to initiator.
+ * @param initTx1 initiator's range request TX timestamp.
+ * @param initTx2 initiator's data message TX timestamp.
+ * @param respRx1 responder's RX timestamp for range request.
+ * @param respRx2 responder's RX timestamp for data message.
+ * 
+ * @return double the distance calculated.
+ */
+static double calcDist(
+  uint64 initAckRx[ACK_EXP_COUNT],
+  uint64 respAckTx[ACK_EXP_COUNT],
+  uint64 initTx1,
+  uint64 initTx2,
+  uint64 respRx1,
+  uint64 respRx2
+  )
+{
+  double distance = 0;
+  double realTime = 0;
+  double distSum = 0;
+
+  int i;
+  // Compute the round trips duration for initiator.
+  for (i = 0; i < ACK_EXP_COUNT; i++)
+  {
+    initRounds[i] = ((double)(initAckRx[i] - initTx1) * DWT_TIME_UNITS);
+  }
+  // Compute the replies trips duration for initiator.
+  for (i = 0; i < ACK_EXP_COUNT; i++)
+  {
+    initReplies[i] = ((double)(initTx2 - initAckRx[i]) * DWT_TIME_UNITS);
+  }
+  
+  // Compute the round trips duration for responder.
+  for (i = 0; i < ACK_EXP_COUNT; i++)
+  {
+    respRounds[i] = ((double)(respRx2 - respAckTx[i]) * DWT_TIME_UNITS);
+  }
+  // Compute the replies trips duration for responder.
+  for (i = 0; i < ACK_EXP_COUNT; i++)
+  {
+    respReplies[i] = ((double)(respAckTx[i] - respRx1) * DWT_TIME_UNITS);
+  }
+
+  // Compute the final distance.
+  for (i = 0; i < ACK_EXP_COUNT; i++)
+  {
+    distSum += ((initRounds[i] - initReplies[i]) + (respRounds[i] - respReplies[i]));
+  }
+  realTime = distSum; // Time of flight in seconds.
+  realTime /= ((double)(4 * ACK_EXP_COUNT));
+  distance = realTime * SPEED_OF_LIGHT;
+
+  return distance;
 }
 
 /**@brief SS TWR Initiator task entry function.
