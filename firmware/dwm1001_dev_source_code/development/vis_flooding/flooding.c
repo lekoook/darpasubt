@@ -166,8 +166,6 @@ void tx_conf_cb(const dwt_cb_data_t *cb_data)
 void transmitData(uint8 *data, uint16 length)
 {
   uint8 buf[PAYLOAD_LEN] = {0};
-
-  
   
   dwt_forcetrxoff();
 

@@ -188,25 +188,25 @@ int main(void)
   // IF WE GET HERE THEN THE LEDS WILL BLINK
   struct Node node;
   Node_constructor(&node, 2, 8);
-  node.v_states[node.id].degree = 3;
+  node.v_states[3].state = 0x0008;
   while (1)
   {
     int i = 0;
-    printf("id: %u\r\n", node.id);
-    for (i = 0; i < 8; i++)
-    {
-      printf("i = %d\r\n", i);
-      printf("degree: %u\r\n", node.v_states[i].degree);
-      printf("is_new: %u\r\n", node.v_states[i].is_new);
-      printf("state : ");
-      int j;
-      for (j = 0; j < 16; j++)
-      {
-        printf("%u", (node.v_states[i].state >> j) & 0x1);
-      }
-      printf("\r\n");
-    }
-    deca_sleep(1000);
+    // printf("id: %u\r\n", node.id);
+    // for (i = 0; i < 8; i++)
+    // {
+    //   printf("i = %d\r\n", i);
+    //   printf("degree: %u\r\n", node.v_states[i].degree);
+    //   printf("is_new: %u\r\n", node.v_states[i].is_new);
+    //   printf("state : ");
+    //   int j;
+    //   for (j = 0; j < 16; j++)
+    //   {
+    //     printf("%u", (node.v_states[i].state >> j) & 0x1);
+    //   }
+    //   printf("\r\n");
+    // }
+    // deca_sleep(1000);
     uint8 buf[3 * 8 + 1] = {0};
     uint16 len;
     len = Node_pack(&node, buf);
@@ -230,22 +230,25 @@ int main(void)
       printf("\r\n");
     }
     deca_sleep(1000);
-    Node_unpack(&node, buf, 8);
-    printf("id: %u\r\n", node.id);
-    for (i = 0; i < 8; i++)
-    {
-      printf("i = %d\r\n", i);
-      printf("degree: %u\r\n", node.v_states[i].degree);
-      printf("is_new: %u\r\n", node.v_states[i].is_new);
-      printf("state : ");
-      int j;
-      for (j = 0; j < 16; j++)
-      {
-        printf("%u", (node.v_states[i].state >> j) & 0x1);
-      }
-      printf("\r\n");
-    }
-    deca_sleep(3000);
+    // Node_unpack(&node, buf, 8);
+    // printf("id: %u\r\n", node.id);
+    // for (i = 0; i < 8; i++)
+    // {
+    //   printf("i = %d\r\n", i);
+    //   printf("degree: %u\r\n", node.v_states[i].degree);
+    //   printf("is_new: %u\r\n", node.v_states[i].is_new);
+    //   printf("state : ");
+    //   int j;
+    //   for (j = 0; j < 16; j++)
+    //   {
+    //     printf("%u", (node.v_states[i].state >> j) & 0x1);
+    //   }
+    //   printf("\r\n");
+    // }
+    // deca_sleep(3000);
+
+    uint8 leader = Node_elect(&node, 0);
+    printf("Leader is %u\r\n", leader);
     // flood();
   }
 }

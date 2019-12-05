@@ -132,13 +132,13 @@ void Node_update(struct Node *existing, struct Node *change)
       // The degree of separation is the same. Consider it credible.
       // But do not increment the degree since there is no difference in the degree between
       // previous value and incoming value.
-      existing->v_states[i].state = incoming.state;
+      existing->v_states[i] = incoming;
     }
     else
     {
       // The incoming degree is lesser, hence it is a credible source. We update with the incoming
       // visibility state information and increment its degree by one.
-      existing->v_states[i].state = incoming.state;
+      existing->v_states[i] = incoming;
       existing->v_states[i].degree++;
     }
   }
@@ -146,4 +146,84 @@ void Node_update(struct Node *existing, struct Node *change)
   // Update the local visibility state.
   existing->v_states[existing->id].state |= 1 << change->id;
   existing->v_states[existing->id].is_new = 0;
+}
+
+/**
+ * @brief Remove the occurence of an node id from a visibility state information.
+ * 
+ * @param node pointer to the local node's Node struct.
+ * @param state_id id of the visibility state information to remove from.
+ * @param to_clear id to remove in the visibility state information given.
+ */
+void Node_remove(struct Node *node, uint8 state_id, uint8 to_clear)
+{
+  node->v_states[state_id].state &= ~(1 << to_clear);
+}
+
+/**
+ * @brief Elect a leader based on the given visibility states. The node with the highest count is the leader.
+ * 
+ * @param node pointer to the local node's Node struct.
+ * @param ignore_itself boolean flag to ignore the node's own visibility state during checking.
+ * @return uint8 the identifier of the selected leader.
+ */
+uint8 Node_elect(struct Node *node, uint8 ignore_itself)
+{
+  uint8 selected = 0;
+  uint32 highest = 0;
+
+  // Find the first node with the largest number of set bits in their visibility state which means
+  // that node sees the most number of other nodes.
+  int i;
+  for (i = 0; i < node->nodes_num; i++)
+  {
+    if (ignore_itself && i == node->id) continue;
+
+    uint8 count = count_set_bits_16(node->v_states[i].state);
+    if (count > highest)
+    {
+      highest = count;
+      selected = i;
+    }
+  }
+
+  return selected;
+}
+
+/**
+ * @brief Count the number of set bits ('1') given a 16 bits unsigned integer.
+ * 
+ * @param value 16 bits unsigned integer to check.
+ * @return uint8 number of bits set to '1'.
+ */
+static uint8 count_set_bits_16(uint16 value)
+{
+  // Count the number of set bits for every 2-bits pair, in parallel.
+  // Expanding the operation from the most inner bracket scope,
+  // 0111 -> 0011 (shift right by 1 bit)
+  // 0011 -> 0001 (mask with 0x5555 = 0b0101010101010101)
+  // 0001 -> 0110 (subtract from original value: 0111 - 0001 = 0110)
+  // Now we get the number of bits in each pair (0, 1 or 2) represented in each pair bits.
+  value = value - ((value >> 1) & 0x5555);
+
+  // Similar to above, here finds the sum of every first and second pair of 2-bits, 
+  // represented as 4-bits group.
+  // Expanding from left and from the most inner bracket scope,
+  // 0110 -> 0010 (mask with 0x3333)
+  // 0110 -> 0001 (shift right by 2 bits)
+  // 0001 -> 0001 (mask with 0x3333)
+  // 0010 + 0001 -> 0011 (sum both 2-bits pair into one 4-bits group).
+  value = (value & 0x3333) + ((value >> 2) & 0x3333);
+
+  // Finally, we find the final sum of set bits.
+  // Expanding from left and from most inner bracket scope, 
+  // given 1001 0111 0101 1010 as original value,
+  // then the above two operations will give 0010 0011 0010 0010.
+  // 0010 0011 0010 0010 -> 0000 0010 0011 0010 (shift right by 4 bits)
+  // 0000 0010 0011 0010 -> 0010 0101 0101 0100 (add to previous value)
+  // 0010 0101 0101 0100 -> 0000 0101 0000 0100 (mask with 0x0F0F)
+  // 0000 0101 0000 0100 -> 0000 1001 0000 0100 (multiply with 0x0101, is same as (num << 8) + num)
+  // Now, the higher 8 bits contains the total number of set bits for the entire number.
+  // Shift right by 8 bits.
+  return (((value + (value >> 4)) & 0x0F0F) * 0x0101) >> 8;
 }
