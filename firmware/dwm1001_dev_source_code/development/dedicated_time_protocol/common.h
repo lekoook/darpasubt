@@ -1,11 +1,10 @@
 /* Macros definitions */
-#define N 4 /**< Number of nodes */
+#define NODES 4 /**< Number of nodes */
 // Print enables (set to 1 to print)
 #define P_DIST 1
 #define P_TEMP 1
 // Range measurement mode
-#define RNG_MODE 1 // Set 1 to use measurement mode. Send 'r' through UART to start/reset.
-#define RNG_COUNT 1000 // Number of measurements to make. Limit less than INT MAX.
+#define RNG_MODE 0 // Set 1 to use measurement mode. Send 'r' through UART to start/reset.
 // Ranging related
 #define NODE_ID 0 // Node ID
 #define RANGE_FREQ 10 // Frequency of the cycles
@@ -15,7 +14,7 @@
 #define RX_TX_BUFFER 3600 // Buffer time (us) to transit from RX to TX.
 
 /*
-  Working Configurations (N = 4)
+  Working Configurations (NODES = 4)
   
   2 active devices (0, 1):
   TX_INTERVAL = 2000

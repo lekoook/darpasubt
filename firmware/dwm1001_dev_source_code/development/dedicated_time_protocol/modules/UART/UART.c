@@ -82,12 +82,12 @@ static void vUartErrorHandle(app_uart_evt_t * p_event)
     }
     else if (p_event -> evt_type == APP_UART_DATA_READY)
     {
+      // Capture the character byte from UART input.
       char byte;
       boUART_getc(&byte);
 
       if (byte == 'r')
       {
-        runUser();
       }
     }
 }

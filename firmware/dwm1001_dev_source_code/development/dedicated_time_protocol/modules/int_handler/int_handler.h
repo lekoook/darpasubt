@@ -4,7 +4,6 @@
 #include "dw1001_dev.h"
 #include "app_error.h"
 #include "deca_device_api.h"
-#include "main.h"
 
 #ifndef TIMESTAMPER_H
 #define TIMESTAMPER_H
@@ -19,6 +18,11 @@
 #ifndef MESSAGE_TEMPLATE_H
 #define MESSAGE_TEMPLATE_H
 #include "message_template.h"
+#endif
+
+#ifndef COMMON_H
+#define COMMON_H
+#include "common.h"
 #endif
 
 /* Public function prototypes */

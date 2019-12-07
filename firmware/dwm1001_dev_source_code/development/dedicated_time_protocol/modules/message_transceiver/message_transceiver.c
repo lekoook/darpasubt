@@ -59,11 +59,11 @@ RxStatus rxMsg(uint8 *buffer) {
  * @param msg msg the message_template struct that will be transmitted out.
  * @param tsTable 2D array containing the timestamps for every other nodes.
  */
-void writeTx2(msg_template *msg, uint64 tsTable[NUM_STAMPS_PER_CYCLE][N]) {
+void writeTx2(msg_template *msg, uint64 tsTable[NUM_STAMPS_PER_CYCLE][NODES]) {
   uint64 ts[NUM_STAMPS_PER_CYCLE / 2];
   int i;
   
-  for (i = 0; i < N; i++)
+  for (i = 0; i < NODES; i++)
   {
     if (i == NODE_ID)
     {
@@ -90,7 +90,7 @@ void writeTx2(msg_template *msg, uint64 tsTable[NUM_STAMPS_PER_CYCLE][N]) {
  * @return false if delayed TX will fail.
  */
 bool configTx(
-  uint64 tsTable[NUM_STAMPS_PER_CYCLE][N],
+  uint64 tsTable[NUM_STAMPS_PER_CYCLE][NODES],
   uint64 txDelay,
   uint64 refTs,
   msg_template *txMsg

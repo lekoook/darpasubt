@@ -19,9 +19,9 @@ typedef enum {
 
 TxStatus txMsg(uint8 *msg, int msgLen, uint8 mode);
 RxStatus rxMsg(uint8 *buffer);
-void writeTx2(msg_template *msg, uint64 tsTable[NUM_STAMPS_PER_CYCLE][N]);
+void writeTx2(msg_template *msg, uint64 tsTable[NUM_STAMPS_PER_CYCLE][NODES]);
 bool configTx(
-  uint64 tsTable[NUM_STAMPS_PER_CYCLE][N],
+  uint64 tsTable[NUM_STAMPS_PER_CYCLE][NODES],
   uint64 txDelay,
   uint64 refTs,
   msg_template *txMsg2

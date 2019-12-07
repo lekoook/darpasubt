@@ -6,7 +6,7 @@
 #define TS_LEN 5
 #define ID_LEN 1 // Length of ID field
 #define F_LEN 1 // Length of isFirst field
-#define DATA_LEN NUM_STAMPS_PER_NODE * N * TS_LEN // Length (bytes) of data in standard message. Each timestamp is 5 bytes.
+#define DATA_LEN NUM_STAMPS_PER_NODE * NODES * TS_LEN // Length (bytes) of data in standard message. Each timestamp is 5 bytes.
 #define MSG_LEN HEADER_LEN + ID_LEN + F_LEN + DATA_LEN + CRC_LEN // Length (bytes) of the standard message
 #define NUM_STAMPS_PER_CYCLE 6 // Total number of timestamps needed to compute distance
 #define HEADER_LEN 10
@@ -33,7 +33,7 @@
  * isFirst: whether this message is first in the cycle.
  * data: time.
  *  time: uint32, DATA_LEN timestamps.
- *    |0|0|1|1|...|i-1|i-1|i+1|i+1|...|N-1|N-1|i|i|
+ *    |0|0|1|1|...|i-1|i-1|i+1|i+1|...|NODES-1|NODES-1|i|i|
  *    where msg.id is i
  *      i elem: actual tx time, estimated tx time
  *      other elems: rx time, rx time
@@ -48,12 +48,9 @@ typedef struct {
 } msg_template;
 
 /* Function prototypes */
-void initTable(uint64 table[NUM_STAMPS_PER_CYCLE][N]);
+void initTable(uint64 table[NUM_STAMPS_PER_CYCLE][NODES]);
 void convertToStruct(uint8 *array, msg_template *msg);
 void convertToArr(msg_template msg, uint8 *array);
-void updateTable(uint64 table[NUM_STAMPS_PER_CYCLE][N], msg_template msg, uint64 ts, uint8 thisId);
-void getFullTs(uint64 table[NUM_STAMPS_PER_CYCLE][N], uint64 ts[NUM_STAMPS_PER_CYCLE], uint8 thisId, uint8 targetId);
-void getHalfTs(uint64 table[NUM_STAMPS_PER_CYCLE][N], uint64 ts[NUM_STAMPS_PER_CYCLE/2], uint8 thisId, uint8 targetId);
-
-/* Public variables */
-extern uint64 tsTable[NUM_STAMPS_PER_CYCLE][N];
+void updateTable(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], msg_template msg, uint64 ts, uint8 thisId);
+void getFullTs(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], uint64 ts[NUM_STAMPS_PER_CYCLE], uint8 thisId, uint8 targetId);
+void getHalfTs(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], uint64 ts[NUM_STAMPS_PER_CYCLE/2], uint8 thisId, uint8 targetId);

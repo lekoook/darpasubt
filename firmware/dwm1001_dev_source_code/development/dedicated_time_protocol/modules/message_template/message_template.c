@@ -8,13 +8,13 @@
  *
  * @param table pointer to the 2D array representing the timestamp table.
  */
-void initTable(uint64 table[NUM_STAMPS_PER_CYCLE][N])
+void initTable(uint64 table[NUM_STAMPS_PER_CYCLE][NODES])
 {
   int i, j;
 
   for (i = 0; i < NUM_STAMPS_PER_CYCLE; i++)
   {
-    for (j = 0; j < N; j++)
+    for (j = 0; j < NODES; j++)
     {
       table[i][j] = 0;
     }
@@ -69,7 +69,7 @@ void convertToArr(msg_template msg, uint8 *array)
  * @param ts the reception timestamp of the incoming second TX.
  * @param thisId identifier of calling node.
  */
-void updateTable(uint64 table[NUM_STAMPS_PER_CYCLE][N], msg_template msg, uint64 ts, uint8 thisId)
+void updateTable(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], msg_template msg, uint64 ts, uint8 thisId)
 {
   // This message is from own node.
   if (msg.id == thisId)
@@ -165,12 +165,12 @@ void updateTable(uint64 table[NUM_STAMPS_PER_CYCLE][N], msg_template msg, uint64
  * @param thisId identifier of calling node.
  * @param targetId identifier of target node.
  */
-void getFullTs(uint64 table[NUM_STAMPS_PER_CYCLE][N], uint64 ts[NUM_STAMPS_PER_CYCLE], uint8 thisId, uint8 targetId)
+void getFullTs(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], uint64 ts[NUM_STAMPS_PER_CYCLE], uint8 thisId, uint8 targetId)
 {
   // Invalid call, zero all field to indicate.
   if (thisId == targetId)
   {
-    memset(ts, 0, sizeof(ts));
+    memset(ts, 0, sizeof(uint64));
     return;
   }
 
@@ -205,7 +205,7 @@ void getFullTs(uint64 table[NUM_STAMPS_PER_CYCLE][N], uint64 ts[NUM_STAMPS_PER_C
  * @param thisId identifier of calling node.
  * @param targetId identifier of target node.
  */
-void getHalfTs(uint64 table[NUM_STAMPS_PER_CYCLE][N], uint64 ts[NUM_STAMPS_PER_CYCLE/2], uint8 thisId, uint8 targetId)
+void getHalfTs(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], uint64 ts[NUM_STAMPS_PER_CYCLE/2], uint8 thisId, uint8 targetId)
 {
   if (thisId < targetId)
   {
@@ -222,7 +222,7 @@ void getHalfTs(uint64 table[NUM_STAMPS_PER_CYCLE][N], uint64 ts[NUM_STAMPS_PER_C
   else
   {
     // Invalid call, zero all field to indicate.
-    memset(ts, 0, sizeof(ts));
+    memset(ts, 0, sizeof(uint64));
     return;
   }
 }

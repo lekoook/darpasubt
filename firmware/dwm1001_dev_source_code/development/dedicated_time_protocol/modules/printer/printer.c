@@ -6,10 +6,10 @@
  * @param dists array of distances to be printed.
  * @param thisId identifier of the calling node.
  */
-static void printDists(double dists[N], uint8 thisId)
+static void printDists(double dists[NODES], uint8 thisId)
 {
   printf("D: ");
-  for (int i = 0; i < N; i++)
+  for (int i = 0; i < NODES; i++)
   {
     if (i == thisId)
     {
@@ -17,7 +17,7 @@ static void printDists(double dists[N], uint8 thisId)
     }
 
     printf("%0.4lf", dists[i]);
-    if ((i + 1 != N - 1 || thisId != N - 1) && i != N - 1)
+    if ((i + 1 != NODES - 1 || thisId != NODES - 1) && i != NODES - 1)
     {
       printf(",");
     }
@@ -41,7 +41,7 @@ static void printTemp(double temp)
  * @param temp temperature value to print.
  * @param thisId identifier of the calling node.
  */
-void printData(double dists[N], double temp, uint8 thisId)
+void printData(double dists[NODES], double temp, uint8 thisId)
 {
   if (P_DIST == 1)
   {
