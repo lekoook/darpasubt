@@ -32,10 +32,40 @@ namespace Transport
         for (uint8_t i = 0; i < this->chunk->get_seg_count(); i++)
         {
             uint8_t buf[SEGMENT_SIZE];
+            uint8_t len = sizeof(buf);
             memset(buf, 0, SEGMENT_SIZE);
+
             this->chunk->flatten_seg(i, buf);
             net_manager->sendtoWait(buf, sizeof(buf), dest_addr);
-            Serial.print(F("sent : 0x"));
+            Serial.println(F("sent, waiting ACK"));
+
+            if (net_manager->recvfromAckTimeout(buf, &len, ACK_TIMEOUT))
+            {
+                uint16_t ack = chunk->get_ack(buf);
+                uint16_t seq = chunk->get_isn() + i;
+                if (ack == seq)
+                {
+                    // ACK number is equal to the SEQ we just sent. Need to resend.
+                    i--;
+                    continue;
+                }
+                else if (ack > seq)
+                {
+                    // Send the Segment with the SEQ that is equal to the ACK.
+                    i += ack - seq - 1;
+                }
+                else
+                {
+                    // ACK is less than the SEQ. We resend the Segment with SEQ equal to that ACK. 
+                    i = seq - ack - 1;
+                }
+            }
+            else
+            {
+                // We did not receive an ACK. Resend current Segment again.
+                i--;
+            }
+            
             // for (int j = 0; j < SEGMENT_SIZE; j++)
             // {
             //     Serial.print(buf[j], HEX);
@@ -53,18 +83,23 @@ namespace Transport
     void Transport::receive(uint8_t* data)
     {
         uint8_t source = 0;
-        uint8_t len = RH_MESH_MAX_MESSAGE_LEN;
-        if (net_manager->recvfromAck(data, &len, &source))
+        uint8_t buf[SEGMENT_SIZE];
+        uint8_t len = sizeof(buf);
+        memset(buf, 0, SEGMENT_SIZE);
+        if (net_manager->recvfromAck(buf, &len, &source))
         {
+            // TODO: Send back ACK.
+            uint16_t seq_num = chunk->get_seq(buf);
+            
             Serial.print(F("from "));
             Serial.print(source);
             Serial.print(F(" : "));
             for (int j = 0; j < SEGMENT_SIZE; j++)
             {
-                Serial.print((char)data[j]);
+                Serial.print((char)buf[j]);
             }
             Serial.println(F(""));
-            if (CRC::CRC::check_crc16(data, SEGMENT_SIZE, CRC_IDX))
+            if (CRC::CRC::check_crc16(buf, SEGMENT_SIZE, CRC_IDX))
                 Serial.println(F("crc correct"));
             else
                 Serial.println(F("crc wrong"));

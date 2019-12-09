@@ -49,6 +49,44 @@ namespace Chunk
     }
 
     /**
+     * @brief Returns the initial sequence number.
+     * 
+     * @return uint16_t initial sequence number.
+     */
+    uint16_t Chunk::Chunk::get_isn(void)
+    {
+        return this->isn;
+    }
+
+    /**
+     * @brief Retrieve the SEQ number from a Segment stream.
+     * 
+     * @param segment Segment stream to retrieve from.
+     * @return uint16_t SEQ number.
+     */
+    uint16_t Chunk::Chunk::get_seq(uint8_t segment[SEGMENT_SIZE])
+    {
+        uint16_t seq_num = 0;
+        seq_num = (uint16_t)(segment[SEQ_IDX] << 8);
+        seq_num |= segment[SEQ_IDX+1];
+        return seq_num;
+    }
+
+    /**
+     * @brief Retrieve the ACK number from a Segment stream.
+     * 
+     * @param segment Segment stream to retrieve from.
+     * @return uint16_t ACK number.
+     */
+    uint16_t Chunk::get_ack(uint8_t segment[SEGMENT_SIZE])
+    {
+        uint16_t ack_num = 0;
+        ack_num = (uint16_t)(segment[ACK_IDX] << 8);
+        ack_num |= segment[ACK_IDX+1];
+        return ack_num;
+    }
+
+    /**
      * @brief Breaks a Chunk into Segments.
      * 
      * @param src_addr address of source node.
@@ -58,8 +96,7 @@ namespace Chunk
     {
         this->source = src_addr;
         this->dest = dest_addr;
-
-        this->ack = 0; // Change
+        this->ack = 0;
         
         this->segments_count = (len + PAYLOAD_SIZE - 1) / PAYLOAD_SIZE;
         

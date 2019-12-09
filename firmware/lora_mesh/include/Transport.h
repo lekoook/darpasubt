@@ -16,5 +16,6 @@ namespace Transport
             ~Transport(void);
             void send(uint8_t dest_addr, Chunk::Chunk* chunk);
             void receive(uint8_t* data);
+            void send_ack(uint16_t ack_num);
     };
 }
