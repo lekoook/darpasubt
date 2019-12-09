@@ -21,8 +21,8 @@
 #define RH_MESH_MAX_MESSAGE_LEN 50
 
 // In this small artifical network of 4 nodes,
-// #define MESH_ADDRESS 1
 #define MESH_ADDRESS 1
+// #define MESH_ADDRESS 2
 // #define MESH_ADDRESS 3
 // #define MESH_ADDRESS 4
 
