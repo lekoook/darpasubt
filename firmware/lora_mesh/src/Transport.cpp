@@ -12,6 +12,7 @@ namespace Transport
     net_manager(net_manager)
     {
         this->chunk = 0;
+        this->recv_chunk.
     }
 
     Transport::~Transport(void) {}
@@ -90,6 +91,11 @@ namespace Transport
         {
             // TODO: Send back ACK.
             uint16_t seq_num = chunk->get_seq(buf);
+            if (CRC::CRC::check_crc16(buf, SEGMENT_SIZE, CRC_IDX))
+            {
+                uint16_t ack_num = seq_num + 1;
+                
+            }
             
             Serial.print(F("from "));
             Serial.print(source);

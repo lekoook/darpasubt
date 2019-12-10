@@ -35,7 +35,19 @@ namespace Chunk
         this->isn = gen_isn();
     }
 
-    Chunk::Chunk(void) {}
+    Chunk::Chunk(void) : 
+    id(0), 
+    len(0), 
+    segments_count(0), 
+    isn(0), 
+    source(0), 
+    dest(0), 
+    ack(0), 
+    flags(0)
+    {
+        memset(this->data, 0, MAX_DATA_SIZE);
+        memset(this->segments, 0, sizeof(Segment) * MAX_SEG_CNT);
+    }
     Chunk::~Chunk(void) {}
 
     /**
@@ -59,9 +71,9 @@ namespace Chunk
     }
 
     /**
-     * @brief Retrieve the SEQ number from a Segment stream.
+     * @brief Retrieve the SEQ number from a Segment bytes array.
      * 
-     * @param segment Segment stream to retrieve from.
+     * @param segment Segment bytes array to retrieve from.
      * @return uint16_t SEQ number.
      */
     uint16_t Chunk::Chunk::get_seq(uint8_t segment[SEGMENT_SIZE])
@@ -73,9 +85,9 @@ namespace Chunk
     }
 
     /**
-     * @brief Retrieve the ACK number from a Segment stream.
+     * @brief Retrieve the ACK number from a Segment bytes array.
      * 
-     * @param segment Segment stream to retrieve from.
+     * @param segment Segment bytes array to retrieve from.
      * @return uint16_t ACK number.
      */
     uint16_t Chunk::get_ack(uint8_t segment[SEGMENT_SIZE])
@@ -84,6 +96,17 @@ namespace Chunk
         ack_num = (uint16_t)(segment[ACK_IDX] << 8);
         ack_num |= segment[ACK_IDX+1];
         return ack_num;
+    }
+
+    /**
+     * @brief Retrieve the flag bits from a Segment bytes array.
+     * 
+     * @param segment Segment bytes array to retrieve from.
+     * @return uint16_t 
+     */
+    uint8_t Chunk::get_flags(uint8_t segment[SEGMENT_SIZE])
+    {
+        return (segment[OFFSET_IDX] >> 5);
     }
 
     /**
@@ -124,6 +147,10 @@ namespace Chunk
      */
     void Chunk::flatten_seg(uint8_t index, uint8_t buf[SEGMENT_SIZE])
     {
+        // For first Segment.
+        if (segments[index].seq == this->isn)
+            this->flags |= 0xF2; // Set the SYN bit to '1'.
+        
         // For last Segment.
         if (index == this->segments_count-1)
             this->flags &= 0xFE; // More Segment bit is cleared to '0'.
@@ -136,12 +163,24 @@ namespace Chunk
         // Copy all Segment data into transmission buffer.
         buf[SRC_IDX] = this->source;
         buf[DEST_IDX] = this->dest;
+        memcpy(&buf[CHUNK_IDX], &(this->id), sizeof(this->id));
         memcpy(&buf[OFFSET_IDX], &seg_status, sizeof(uint16_t));
         memcpy(&buf[SEQ_IDX], &(this->segments[index].seq), sizeof(uint16_t));
         memcpy(&buf[ACK_IDX], &(this->ack), sizeof(uint16_t));
         memcpy(&buf[PAYL_IDX], &(this->segments[index].payload), PAYLOAD_SIZE);
 
         CRC::CRC::append_crc16(buf, SEGMENT_SIZE, CRC_IDX);
+    }
+
+    /**
+     * @brief 
+     * 
+     * @param array 
+     * @return Segment 
+     */
+    Segment Chunk::expand_seg(uint8_t array[SEGMENT_SIZE])
+    {
+
     }
 
     /**
@@ -153,5 +192,16 @@ namespace Chunk
     {
         randomSeed(this->id);
         return (uint16_t)random(0, sizeof(uint16_t));
+    }
+
+    /**
+     * @brief Check if the Segment is an ACK message.
+     * 
+     * @param segment Segment bytes array to check.
+     * @return true if is ACK message.
+     * @return false if is not ACK message.
+     */
+    bool Chunk::check_is_ack(uint8_t segment[SEGMENT_SIZE])
+    {
     }
 }

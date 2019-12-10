@@ -9,6 +9,7 @@ namespace Transport
         private:
             uint8_t source_addr;
             Chunk::Chunk* chunk;
+            Chunk::Chunk recv_chunk;
             RHMesh* net_manager;
             
         public:
