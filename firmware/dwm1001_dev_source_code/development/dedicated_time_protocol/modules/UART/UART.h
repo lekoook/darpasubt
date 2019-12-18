@@ -1,3 +1,6 @@
+#ifndef _UART_H
+#define _UART_H
+
 /*!
 * @brief Component name:	UART
 *
@@ -12,3 +15,5 @@
 
 bool boUART_Init	(void);
 bool boUART_getc	(uint8_t *u8ch);
+
+#endif

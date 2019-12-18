@@ -38,7 +38,7 @@
 #include "nrf_drv_gpiote.h"
 #include "app_timer.h"
 #include "UART.h"
-#include "ranging.h"
+#include "events_states.h"
 
 
 //-----------------dw1000----------------------------
@@ -69,20 +69,21 @@ TimerHandle_t led_toggle_timer_handle;  /**< Reference to LED1 toggling FreeRTOS
 
 void runTask (void * pvParameter);
 static uint64 getRandNum(void);
-static void initListen(void);
 static uint16 getAntDly(uint8 prf);
-static void ledOn(void);
+static void ledOn(struct state_data_t* state_data);
+void (* do_state)(struct state_machine_t* state_machine);
 
 /* Global variables */
-APP_TIMER_DEF(activeInit);
-APP_TIMER_DEF(wakeInit);
-APP_TIMER_DEF(rx1Init); // First RX phase timer
-APP_TIMER_DEF(rx2Init); // Second RX phase timer
-APP_TIMER_DEF(active);
-APP_TIMER_DEF(wake);
-APP_TIMER_DEF(rx1); // First RX phase timer
-APP_TIMER_DEF(rx2); // Second RX phase timer
-APP_TIMER_DEF(cycle); // Repeat timer to time each cycle period.
+// APP_TIMER_DEF(activeInit);
+// APP_TIMER_DEF(wakeInit);
+// APP_TIMER_DEF(rx1Init); // First RX phase timer
+// APP_TIMER_DEF(rx2Init); // Second RX phase timer
+// APP_TIMER_DEF(active);
+// APP_TIMER_DEF(wake);
+// APP_TIMER_DEF(rx1); // First RX phase timer
+// APP_TIMER_DEF(rx2); // Second RX phase timer
+// APP_TIMER_DEF(cycle); // Repeat timer to time each cycle period.
+struct state_machine_t state_machine;
 
 
 #ifdef USE_FREERTOS
@@ -156,9 +157,9 @@ int main(void)
 
   // We need to read antenna delay in OTP memory with slow SPI clock.
   // We set it and NEVER change it, as it will be used for all future timestamping purpose.
-  antDelay = getAntDly(DWT_PRF_64M);
-  dwt_settxantennadelay(antDelay);
-  dwt_setrxantennadelay(antDelay);
+  state_machine.data.ant_delay = getAntDly(DWT_PRF_64M);
+  dwt_settxantennadelay(state_machine.data.ant_delay);
+  dwt_setrxantennadelay(state_machine.data.ant_delay);
 
   // Set SPI clock to 8MHz
   port_set_dw1000_fastrate();
@@ -174,23 +175,22 @@ int main(void)
   dwt_setinterrupt(DWT_INT_TFRS | DWT_INT_RFCG | DWT_INT_RFTO | DWT_INT_RXPTO | DWT_INT_RPHE | DWT_INT_RFCE | DWT_INT_RFSL | DWT_INT_SFDT, 1);
 
   // Prepare for ranging process.
-  struct ranging_timers timers;
-  timers.activeInitTimer = &activeInit;
-  timers.wakeInitTimer = &wakeInit;
-  timers.rx1InitTimer = &rx1Init;
-  timers.rx2InitTimer = &rx2Init;
-  timers.activeTimer = &active;
-  timers.wakeTimer = &wake;
-  timers.rx1Timer = &rx1;
-  timers.rx2Timer = &rx2;
-  timers.cycleTimer = &cycle;
-  initRanging(timers);
+  // struct ranging_timers timers;
+  // timers.activeInitTimer = &activeInit;
+  // timers.wakeInitTimer = &wakeInit;
+  // timers.rx1InitTimer = &rx1Init;
+  // timers.rx2InitTimer = &rx2Init;
+  // timers.activeTimer = &active;
+  // timers.wakeTimer = &wake;
+  // timers.rx1Timer = &rx1;
+  // timers.rx2Timer = &rx2;
+  // timers.cycleTimer = &cycle;
+  init_ranging(&state_machine);
 
   // Initialise the Random Number Generator module.
   nrf_drv_rng_init(NULL);
-  if (NODE_ID == 0) nodeFunction = MASTER_FUNCTION;
-  else nodeFunction = SLAVE_FUNCTION;
-  ledOn();
+  
+  ledOn(&(state_machine.data));
 
   //-------------dw1000  ini------end---------------------------	
   // IF WE GET HERE THEN THE LEDS WILL BLINK
@@ -217,33 +217,17 @@ void runTask (void * pvParameter)
   UNUSED_PARAMETER(pvParameter);
   dwt_setleds(DWT_LEDS_ENABLE);
 
-  // Begin the tracking of ranging cycles immediately.
-  if (nodeFunction == MASTER_FUNCTION)
-  {
-    masterRanging();
-  }
-  else
-  {
-    initListen();
-  }
-  
-  
   // Application loop.
   while(true)
   {
-    uint32 sys = dwt_read32bitreg(SYS_STATUS_ID);
-    // Cycle no longer in sync with master node. Take remedial actions.
-    if (hasSyncErr)
-    {
-      // Stop cycle timer and reset flags and transreceiver.
-      lowTimerStopAll();
-      dwt_forcetrxoff();
-      dwt_rxreset();
-      hasSyncErr = false;
+    do_state = state_machine.state_func;
+    do_state(&state_machine);
 
-      // Attempt to look for master node again.
-      initListen();
-    }
+    if (handle_tx_int)
+      handle_tx(&state_machine);
+
+    if (handle_rx_int)
+      handle_rx(&state_machine);
   }
 }
 
@@ -275,24 +259,6 @@ static uint64 getRandNum(void)
 
   return ret;
 }
-/**
- * @brief Listens for master node in the network. Once master node is found, this node syncs it's cycle with master.
- *        This is handled by rxHandler() function.
- * 
- * 
- */
-static void initListen(void)
-{
-  // Wait for random amount of time before enabling RX.
-  uint64 random = getRandNum();
-  uint16 time = (random % 500) + 1000; // Get a range between 10000 - 15000.
-  nrf_delay_ms(time); // Delay in microseconds.
-  
-  isInitiating = true;
-
-  // Start listening for one cycle
-  dwt_rxenable(DWT_START_RX_IMMEDIATE);
-}
 
 /**
  * @brief Retrieves the antenna delay stored in OTP memory.
@@ -320,10 +286,10 @@ static uint16 getAntDly(uint8 prf)
  * @brief Turn on master or slave status LED.
  * 
  */
-static void ledOn(void)
+static void ledOn(struct state_data_t* state_data)
 {
   LEDS_OFF(BSP_LED_0_MASK | BSP_LED_1_MASK | BSP_LED_2_MASK);
-  if (nodeFunction == MASTER_FUNCTION) 
+  if (state_data->node_function == MASTER_FUNCTION) 
   {
     LEDS_ON(BSP_LED_2_MASK);
   }

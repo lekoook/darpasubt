@@ -1,11 +1,10 @@
+#ifndef _MESSAGE_TRANSCEIVER_H
+#define _MESSAGE_TRANSCEIVER_H
+
 #include "deca_device_api.h"
 #include "deca_regs.h"
 #include "port_platform.h"
-
-#ifndef MESSAGE_TEMPLATE_H
-#define MESSAGE_TEMPLATE_H
 #include "message_template.h"
-#endif
 
 typedef enum {
   TX_SUCCESS,
@@ -27,3 +26,5 @@ bool configTx(
   msg_template *txMsg2
   );
 TxStatus convertTx(msg_template *msg, uint8 mode);
+
+#endif

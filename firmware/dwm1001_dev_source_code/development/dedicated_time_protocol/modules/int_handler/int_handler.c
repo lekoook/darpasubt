@@ -39,26 +39,29 @@ void vInterruptInit (void)
  */
 void rx_ok_cb(const dwt_cb_data_t *cb_data)
 {
-  RxStatus rxStatus;
-  uint8 buffer[MSG_LEN] = {0};
-  msg_template msg;
+  handle_rx_int = true;
 
-  // Eg: Read received frame data and print
-  rxStatus = rxMsg(buffer);
-  if (rxStatus == RX_SUCCESS) {
-    // Cast the frame to the message structure first
-    convertToStruct(buffer, &msg);
-    // printf("\tRX: %d, %d\r\n", msg.id, (msg.isFirst == 1 ? 1 : 2));
-    rxHandler(&msg);
-  }
-  else
-  {
-    // printf("\tRX fail\r\n");
-  }
+  /* Below is old code. */
+  // RxStatus rxStatus;
+  // uint8 buffer[MSG_LEN] = {0};
+  // msg_template msg;
+
+  // // Eg: Read received frame data and print
+  // rxStatus = rxMsg(buffer);
+  // if (rxStatus == RX_SUCCESS) {
+  //   // Cast the frame to the message structure first
+  //   convertToStruct(buffer, &msg);
+  //   // printf("\tRX: %d, %d\r\n", msg.id, (msg.isFirst == 1 ? 1 : 2));
+  //   rxHandler(&msg);
+  // }
+  // else
+  // {
+  //   // printf("\tRX fail\r\n");
+  // }
   
 
   // Make sure to enable receiver again
-  dwt_rxenable(DWT_START_RX_IMMEDIATE);
+  // dwt_rxenable(DWT_START_RX_IMMEDIATE);
 }
 
 /**
@@ -103,24 +106,27 @@ void tx_conf_cb(const dwt_cb_data_t *cb_data)
   * An actual application that would not need this callback could simply not define it and set the corresponding field to NULL when calling
   * dwt_setcallbacks(). The ISR will not call it which will allow to save some interrupt processing time. */
 
-  if (tx1Sending)
-  {
-    txUpdate(getTxTimestampU64());
-    tx1Sending = false;
-  }
-  else if (tx2Sending)
-  {
-    // Make sure device is in IDLE before changing RX timeout.
-    // dwt_forcetrxoff();
-    // dwt_setrxtimeout(0);
-    // dwt_rxenable(DWT_START_RX_IMMEDIATE);
+  handle_tx_int = true;
+
+  /* From here below is old code */
+  // if (tx1Sending)
+  // {
+  //   txUpdate(getTxTimestampU64());
+  //   tx1Sending = false;
+  // }
+  // else if (tx2Sending)
+  // {
+  //   // Make sure device is in IDLE before changing RX timeout.
+  //   // dwt_forcetrxoff();
+  //   // dwt_setrxtimeout(0);
+  //   // dwt_rxenable(DWT_START_RX_IMMEDIATE);
     
-    tx2Sending = false;
-  }
-  else
-  {
-    // Will not reach here.
-  }
+  //   tx2Sending = false;
+  // }
+  // else
+  // {
+  //   // Will not reach here.
+  // }
 }
 
 /* Local functions */

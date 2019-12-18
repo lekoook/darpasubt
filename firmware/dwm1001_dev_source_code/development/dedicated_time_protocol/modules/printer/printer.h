@@ -1,10 +1,9 @@
+#ifndef _PRINTER_H
+#define _PRINTER_H
+
 #include "deca_types.h"
 #include "stdio.h"
-
-#ifndef COMMON_H
-#define COMMON_H
 #include "common.h"
-#endif
 
 static void printDists(double dists[NODES], uint8 thisId);
 static void printTemp(double temp);
@@ -20,3 +19,5 @@ void printConfig(
   uint32 sleepPeriod,
   uint32 wakeBuffer
   );
+
+#endif

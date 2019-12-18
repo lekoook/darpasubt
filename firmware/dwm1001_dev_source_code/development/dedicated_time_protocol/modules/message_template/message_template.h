@@ -1,3 +1,6 @@
+#ifndef _MESSAGE_TEMPLATE_H
+#define _MESSAGE_TEMPLATE_H
+
 #include "deca_types.h"
 #include "common.h"
 
@@ -54,3 +57,5 @@ void convertToArr(msg_template msg, uint8 *array);
 void updateTable(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], msg_template msg, uint64 ts, uint8 thisId);
 void getFullTs(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], uint64 ts[NUM_STAMPS_PER_CYCLE], uint8 thisId, uint8 targetId);
 void getHalfTs(uint64 table[NUM_STAMPS_PER_CYCLE][NODES], uint64 ts[NUM_STAMPS_PER_CYCLE/2], uint8 thisId, uint8 targetId);
+
+#endif

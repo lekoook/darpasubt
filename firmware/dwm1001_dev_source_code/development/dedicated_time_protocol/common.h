@@ -1,3 +1,6 @@
+#ifndef _COMMON_H
+#define _COMMON_H
+
 /* Macros definitions */
 #define NODES 4 /**< Number of nodes */
 // Print enables (set to 1 to print)
@@ -6,7 +9,7 @@
 // Range measurement mode
 #define RNG_MODE 0 // Set 1 to use measurement mode. Send 'r' through UART to start/reset.
 // Ranging related
-#define NODE_ID 0 // Node ID
+#define NODE_ID 1 // Node ID
 #define RANGE_FREQ 10 // Frequency of the cycles
 #define TX_INTERVAL 4000 // In microseconds
 #define WAKE_BUFFER 1000 // Buffer time in microseconds to allow proper transceiver hardware waking.
@@ -35,3 +38,5 @@
 */
 
 typedef unsigned long long uint64;
+
+#endif
