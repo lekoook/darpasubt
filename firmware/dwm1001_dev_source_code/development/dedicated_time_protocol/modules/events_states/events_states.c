@@ -180,13 +180,20 @@ void handle_rx(struct state_machine_t* state_machine)
   handle_rx_int = false; // Reset the flag.
   uint8 buffer[MSG_LEN] = {0};
 
-  if (rxMsg(buffer) == RX_SUCCESS)
+  if (rxMsg(buffer) != RX_SUCCESS)
   {
-    msg_template msg;
-    convertToStruct(buffer, &msg);
-    
-    if (state_machine->state == LISTEN_FOR_MASTER_STATE &&
-        msg.id == state_machine->data.master_id &&
+    dwt_rxenable(DWT_START_RX_IMMEDIATE);
+    return;
+  }
+
+  // Reception succeed, now we want to process according the State.  
+  msg_template msg;
+  convertToStruct(buffer, &msg);
+
+  switch (state_machine->state)
+  {
+  case LISTEN_FOR_MASTER_STATE:
+    if (msg.id == state_machine->data.master_id &&
         msg.isFirst == 1 &&
         state_machine->data.node_function == SLAVE_FUNCTION)
     {
@@ -196,10 +203,33 @@ void handle_rx(struct state_machine_t* state_machine)
       uint64 ts = getRxTimestampU64();
       updateTable(state_machine->data.ts_table, msg, ts, NODE_ID);
     }
-  }
-  else
-  {
-    // Reception fail, do nothing, do not change any Events.
+    break;
+  
+  case WAIT_RX_PHASE_ZERO_STATE:
+    ; // Prevent label can only be part of a statement error.
+    uint64 ts = getRxTimestampU64();
+    updateTable(state_machine->data.ts_table, msg, ts, NODE_ID);
+    uint16_t timeout = get_next_timeout();
+    dwt_setrxtimeout(timeout);
+    // if (rx_zero_complete())
+    // {
+    //   state_machine->event = RECEIVED_ALL_EVENT;
+    // }
+    // else
+    // {
+    //   state_machine->event = RECEIVED_ONE_EVENT;
+    // }
+    
+    break;
+
+  case WAIT_RX_PHASE_ONE_STATE:
+    break;
+
+  case WAIT_RX_PHASE_TWO_STATE:
+    break;
+  
+  default:
+    break;
   }
 
   dwt_rxenable(DWT_START_RX_IMMEDIATE);
