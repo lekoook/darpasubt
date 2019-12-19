@@ -26,29 +26,28 @@ void prepare_listen(struct state_machine_t* state_machine)
 
   if (state_machine->event == EN_RX_SUCCESS_EVENT)
   {
+    
+  }
+
+  if (state_machine->event == EN_RX_FAIL_EVENT)
+  {
+  }
+  
+  if (dwt_rxenable(DWT_START_RX_IMMEDIATE) == DWT_SUCCESS)
+  {
     // Transition to listen_for_master state.
     state_machine->event = NO_EVENT;
     state_machine->state = LISTEN_FOR_MASTER_STATE;
     state_machine->state_func = listen_for_master;
     return;
   }
-
-  if (state_machine->event == EN_RX_FAIL_EVENT)
+  else
   {
     // Transition to self state.
     state_machine->event = NO_EVENT;
     state_machine->state = PREPARE_LISTEN_STATE;
     state_machine->state_func = prepare_listen;
     return;
-  }
-  
-  if (dwt_rxenable(DWT_START_RX_IMMEDIATE) == DWT_SUCCESS)
-  {
-    state_machine->event = EN_RX_SUCCESS_EVENT;
-  }
-  else
-  {
-    state_machine->event = EN_RX_FAIL_EVENT;
   }
 }
 
@@ -62,17 +61,17 @@ void listen_for_master(struct state_machine_t* state_machine)
   if (state_machine->event == HEARD_MASTER_TX_EVENT)
   {
     state_machine->event = NO_EVENT;
-    state_machine->state = WAIT_RX_PHASE_ZERO_STATE;
-    state_machine->state_func = wait_rx_phase_one;
+    state_machine->state = WAIT_RX_PHASE_ZERO_EN_STATE;
+    state_machine->state_func = wait_rx_phase_zero_en;
     return;
   }
 
   // Do nothing as we are just waiting for master TX.
 }
 
-void wait_rx_phase_zero(struct state_machine_t* state_machine)
+void wait_rx_phase_zero_en(struct state_machine_t* state_machine)
 {
-  if (state_machine->event == RECEIVED_ALL_EVENT || state_machine->event == TIMEOUT_EVENT)
+  if (rx_zero_complete())
   {
     state_machine->event = NO_EVENT;
     state_machine->state = SET_FIRST_TX_STATE;
@@ -80,7 +79,26 @@ void wait_rx_phase_zero(struct state_machine_t* state_machine)
     return;
   }
 
+  reset_rx_timeout();
+  state_machine->event = NO_EVENT;
+  state_machine->state = WAIT_RX_PHASE_ZERO_STATE;
+  state_machine->state_func = wait_rx_phase_zero;
+}
 
+void wait_rx_phase_zero(struct state_machine_t* state_machine)
+{
+  if (rx_zero_complete())
+  {
+    state_machine->event = RECEIVED_ALL_EVENT;
+  }
+  
+  if (state_machine->event == RECEIVED_ALL_EVENT || state_machine->event == TIMEOUT_EVENT)
+  {
+    state_machine->event = NO_EVENT;
+    state_machine->state = SET_FIRST_TX_STATE;
+    state_machine->state_func = set_first_tx;
+    return;
+  }
 }
 
 void set_first_tx(struct state_machine_t* state_machine)
@@ -95,7 +113,7 @@ void wait_first_tx(struct state_machine_t* state_machine)
 
 void wait_rx_phase_one(struct state_machine_t* state_machine)
 {
-
+  
 }
 
 void set_second_tx(struct state_machine_t* state_machine)
@@ -141,6 +159,11 @@ void init_ranging(struct state_machine_t* state_machine)
   // TODO: Temporary solution to assign function status.
   if (NODE_ID == 0) state_machine->data.node_function = MASTER_FUNCTION;
   else state_machine->data.node_function = SLAVE_FUNCTION;
+
+  uint8 seq[8] = {0, 1, 2, 3, 0, 1, 2, 3};
+  set_seq(seq, 8, NODE_ID);
+  set_to_offset(TX_INTERVAL, 500);
+  set_txrx_offset(TX_INTERVAL);
   
   // Pre-calculate all the timings in one cycle (ie, cycle, active, sleep period).
   init_cycle_timings(&(state_machine->data));
@@ -202,6 +225,7 @@ void handle_rx(struct state_machine_t* state_machine)
       // Update the record table with the timestamp of reception.
       uint64 ts = getRxTimestampU64();
       updateTable(state_machine->data.ts_table, msg, ts, NODE_ID);
+      update_rx_zero();
     }
     break;
   
@@ -209,17 +233,8 @@ void handle_rx(struct state_machine_t* state_machine)
     ; // Prevent label can only be part of a statement error.
     uint64 ts = getRxTimestampU64();
     updateTable(state_machine->data.ts_table, msg, ts, NODE_ID);
-    uint16_t timeout = get_next_timeout();
-    dwt_setrxtimeout(timeout);
-    // if (rx_zero_complete())
-    // {
-    //   state_machine->event = RECEIVED_ALL_EVENT;
-    // }
-    // else
-    // {
-    //   state_machine->event = RECEIVED_ONE_EVENT;
-    // }
-    
+    update_rx_zero();
+    state_machine->event == RECEIVED_ONE_EVENT;
     break;
 
   case WAIT_RX_PHASE_ONE_STATE:
@@ -231,8 +246,6 @@ void handle_rx(struct state_machine_t* state_machine)
   default:
     break;
   }
-
-  dwt_rxenable(DWT_START_RX_IMMEDIATE);
 }
 
 /**
@@ -296,4 +309,11 @@ static void init_tx_msgs(struct state_data_t* state_data)
   memcpy(state_data->tx_msg_2.header, header, HEADER_LEN);
   memset(state_data->tx_msg_2.data, 0, DATA_LEN);
   memset(state_data->tx_msg_2.crc, 0, CRC_LEN);
+}
+
+static void reset_rx_timeout(void)
+{
+  dwt_forcetrxoff();
+  
+//  dwt_setrxtimeout();
 }

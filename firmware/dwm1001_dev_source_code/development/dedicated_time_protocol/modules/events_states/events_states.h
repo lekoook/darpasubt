@@ -9,6 +9,7 @@
 #include "timestamper.h"
 #include "message_transceiver.h"
 #include "int_handler.h"
+#include "seq_manager.h"
 
 #define SPEED_OF_LIGHT 299702547
 #define OTP_ANT_DLY 0x01C
@@ -23,15 +24,16 @@ enum state_t
 {
   PREPARE_LISTEN_STATE = 0,
   LISTEN_FOR_MASTER_STATE = 1,
-  WAIT_RX_PHASE_ZERO_STATE = 2,
-  SET_FIRST_TX_STATE = 3,
-  WAIT_FIRST_TX_STATE = 4,
-  WAIT_RX_PHASE_ONE_STATE = 5,
-  SET_SECOND_TX_STATE = 6,
-  WAIT_SECOND_TX_STATE = 7,
-  WAIT_RX_PHASE_TWO_STATE = 8,
-  SLEEP_STATE = 9,
-  WAKE_STATE = 10
+  WAIT_RX_PHASE_ZERO_EN_STATE = 2,
+  WAIT_RX_PHASE_ZERO_STATE = 3,
+  SET_FIRST_TX_STATE = 4,
+  WAIT_FIRST_TX_STATE = 5,
+  WAIT_RX_PHASE_ONE_STATE = 6,
+  SET_SECOND_TX_STATE = 7,
+  WAIT_SECOND_TX_STATE = 8,
+  WAIT_RX_PHASE_TWO_STATE = 9,
+  SLEEP_STATE = 10,
+  WAKE_STATE = 11
 };
 
 enum event_t
@@ -93,6 +95,7 @@ extern uint8 header[HEADER_LEN];
 /* States function prototypes */
 void prepare_listen(struct state_machine_t* state_machine);
 void listen_for_master(struct state_machine_t* state_machine);
+void wait_rx_phase_zero_en(struct state_machine_t* state_machine);
 void wait_rx_phase_zero(struct state_machine_t* state_machine);
 void set_first_tx(struct state_machine_t* state_machine);
 void wait_first_tx(struct state_machine_t* state_machine);
@@ -111,5 +114,6 @@ void handle_rx(struct state_machine_t* state_machine);
 static void tx_update(struct state_machine_t* state_machine, uint64 ts);
 static void init_cycle_timings(struct state_data_t* state_data);
 static void init_tx_msgs(struct state_data_t* state_data);
+static void reset_rx_timeout(void);
 
 #endif

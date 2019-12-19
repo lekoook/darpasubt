@@ -52,7 +52,7 @@ void set_seq(uint8 seq[SEQ_CNT], uint8 cnt, uint8 curr_id)
 void set_to_offset(uint32 interval, uint32 to_buf)
 {
   int i;
-  for (i = 0; i < SEQ_CNT; i++)
+  for (i = 0; i < nodes_count; i++)
   {
     to_offset[i] = interval * i;
     if (i > 0) 
@@ -68,7 +68,7 @@ void set_to_offset(uint32 interval, uint32 to_buf)
 void set_txrx_offset(uint32 interval)
 {
   int i;
-  for (i = 0; i < SEQ_CNT; i++)
+  for (i = 0; i < nodes_count; i++)
   {
     txrx_offset[i] = interval * i;
   }
