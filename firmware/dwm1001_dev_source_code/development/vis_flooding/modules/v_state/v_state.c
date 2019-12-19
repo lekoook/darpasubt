@@ -12,15 +12,18 @@ void Node_constructor(struct Node *node, uint8 id, uint8 nodes_num)
   // Initialise all members.
   node->nodes_num = nodes_num;
   node->id = id;
-  node->v_states = malloc(sizeof(*node->v_states) * nodes_num);
   
-  // Initialise all members of VState struct.
+  // Initialise all members of VState structs and counters.
   int i;
   for (i = 0; i < nodes_num; i++)
   {
     node->v_states[i].degree = 0;
     node->v_states[i].is_new = 1;
     node->v_states[i].state = 0;
+
+    node->miss_counts[i] = 0;
+    node->change_counts[i] = 0;
+    node->stable_counts[i] = 0;
   }
   node->v_states[id].state = 1 << id;
 }
@@ -32,7 +35,7 @@ void Node_constructor(struct Node *node, uint8 id, uint8 nodes_num)
  */
 void Node_destructor(struct Node *node)
 {
-  free(sizeof(*node->v_states) * node->nodes_num);
+  // Do nothing.
 }
 
 /**
@@ -49,6 +52,8 @@ uint16 Node_pack(struct Node *node, uint8 *packed_data)
   uint16 length = 0;
 
   packed_data[length++] = node->id; // Pack id first.
+  packed_data[length++] = (node->miss_counts[node->id] >> 8) & 0xFF; // Higher byte of miss_count
+  packed_data[length++] = node->miss_counts[node->id] & 0xFF; // Lower byte of miss_count
   
   for (i = 0; i < nodes_num; i++)
   {
@@ -57,15 +62,15 @@ uint16 Node_pack(struct Node *node, uint8 *packed_data)
       Byte 1       : Status bits (first 4 bits) + Degree count (last 4 bits)
       Byte 2 and 3 : v_state check bits. MSB starting from the left.
     */
-    uint8 status = 0;
-    uint16 state = 0;
-    status |= (node->v_states[i].is_new & 0xF) << 4;
-    status |= node->v_states[i].degree & 0xF;
-    state = node->v_states[i].state;
+    packed_data[length++] = node->v_states[i].is_new;
+    packed_data[length++] = node->v_states[i].degree;
     
-    packed_data[length++] = status;
-    packed_data[length++] = (state & 0xFF00) >> 8;
-    packed_data[length++] = (state & 0x00FF);
+    uint64 state = node->v_states[i].state;
+    uint8 j;
+    for (j = sizeof(state)-1; j >= 0; i--)
+    {
+      packed_data[length++] = (state >> (j * 8)) & 0xFF;
+    }
   }
 
   return length;
@@ -83,16 +88,20 @@ void Node_unpack(struct Node *node, uint8 *packed_data, uint8 nodes_num)
   uint16 index = 0;
 
   node->id = packed_data[index++]; // Unpack id first.
+  node->miss_counts[node->id] |= (packed_data[index++] << 8);
+  node->miss_counts[node->id] |= packed_data[index++];
 
   for (i = 0; i < nodes_num; i++)
   {
-    uint8 status = packed_data[index++];
-    uint16 state = 0;
-    state |= packed_data[index++] << 8;
-    state |= packed_data[index++];
-
-    node->v_states[i].is_new = (status & 0xF0) >> 4;
-    node->v_states[i].degree = status & 0xF;
+    node->v_states[i].is_new = packed_data[index++];
+    node->v_states[i].degree = packed_data[index++];
+    
+    uint64 state = 0;
+    uint8 j;
+    for (j = sizeof(state)-1; j >= 0; j--)
+    {
+      state |= ((uint64)packed_data[index]) << (j * 8);
+    }
     node->v_states[i].state = state;
   }
 }
@@ -226,4 +235,9 @@ static uint8 count_set_bits_16(uint16 value)
   // Now, the higher 8 bits contains the total number of set bits for the entire number.
   // Shift right by 8 bits.
   return (((value + (value >> 4)) & 0x0F0F) * 0x0101) >> 8;
+}
+
+static uint8 count_set_bits_64(uint64 value)
+{
+  // TODO: Implement the 64 bits version.
 }
