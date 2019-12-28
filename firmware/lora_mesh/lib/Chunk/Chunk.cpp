@@ -149,6 +149,16 @@ namespace Chunk
     }
 
     /**
+     * @brief Sets the source address of this Chunk.
+     * 
+     * @param src Source address of this Chunk.
+     */
+    void Chunk::set_src(uint16_t src)
+    {
+        this->src = src;
+    }
+
+    /**
      * @brief Increment the attempts counter by one.
      * 
      */
@@ -165,6 +175,16 @@ namespace Chunk
     uint16_t Chunk::get_seg_count(void)
     {
         return this->segments_count;
+    }
+
+    /**
+     * @brief Returns the source address of this Chunk.
+     * 
+     * @return uint16_t the source address.
+     */
+    uint16_t Chunk::get_src(void)
+    {
+        return this->src;
     }
 
     /**

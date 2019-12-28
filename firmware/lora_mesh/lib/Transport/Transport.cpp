@@ -168,6 +168,7 @@ namespace Transport
                 new_segment.expand_seg(buf);
                 if (process_segment(new_segment, new_chunk))
                 {
+                    new_chunk.set_src(source);
                     recv_queue.put(new_chunk);
                     return true;
                 }
