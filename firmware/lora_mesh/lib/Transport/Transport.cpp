@@ -40,6 +40,7 @@ namespace Transport
     {
         if (!send_queue.empty())
         {
+            digitalWrite(LED_BUILTIN, HIGH);
             Chunk::Chunk chunk = send_queue.get();
             if (!send(chunk))
             {
@@ -47,6 +48,7 @@ namespace Transport
                 if (chunk.get_attempts() <= MAX_ATTEMPTS)
                     send_queue.put(chunk);
             }
+            digitalWrite(LED_BUILTIN, LOW);
         }
     }
 
@@ -70,16 +72,7 @@ namespace Transport
 
             if (net_manager->sendtoWait(buf, sizeof(buf), chunk.get_dest()) != RH_ROUTER_ERROR_NONE)
                 return false;
-            
-            Serial.print(F("sent : 0x"));
-            for (int j = 0; j < SEGMENT_SIZE; j++)
-            {
-                Serial.print(buf[j], HEX);
-                Serial.print(F(" "));
-            }
-            Serial.println(F(""));
         }
-        Serial.println(F(""));
 
         return true;
     }
