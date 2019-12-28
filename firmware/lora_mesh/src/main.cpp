@@ -73,7 +73,9 @@ RH_RF95<HardwareSerial> driver(HARD_SERIAL);
 
 /* Local function prototypes */
 void data_recv_cb(const talker_pkg::LoraPacket& to_transmit);
-int32_t str_to_uint(const char* str);
+void pub_data(Chunk::Chunk& chunk);
+int32_t str_to_int(const char* str);
+uint32_t int_to_str(char* str, int32_t integer);
 
 // Class to manage message delivery and receipt, using the driver declared above
 RHMesh mesh_manager(driver, MESH_ADDRESS);
@@ -82,7 +84,9 @@ Chunk::Chunk recv_chunk;
 
 // ROS related
 ros::NodeHandle nh;
+talker_pkg::LoraPacket pub_msg;
 ros::Subscriber<talker_pkg::LoraPacket> sub("tx", &data_recv_cb);
+ros::Publisher pub("rx", &pub_msg);
 
 void setup() 
 {
@@ -111,10 +115,7 @@ void loop()
     {
         if (transporter.get_one_chunk(recv_chunk))
         {
-            for (int i = 0; i < recv_chunk.get_len(); i++)
-            {
-                SHOW_SERIAL.println(*(recv_chunk.get_data() + i), HEX);
-            }
+            pub_data(recv_chunk);
         }
     }
 
@@ -129,7 +130,7 @@ void loop()
 void data_recv_cb(const talker_pkg::LoraPacket& to_transmit)
 {
     // Create a new chunk and push to queue.
-    int32_t dest = str_to_uint(to_transmit.to.data);
+    int32_t dest = str_to_int(to_transmit.to.data);
     // Fail silently if destination address is negative.
     if (dest >= 0)
     {
@@ -139,13 +140,27 @@ void data_recv_cb(const talker_pkg::LoraPacket& to_transmit)
 }
 
 /**
- * @brief Converts a std_msgs::String object into an int. Returns -1 if string is not an int.
+ * @brief Publishes Chunk payload data onto ROS.
+ * 
+ * @param chunk reference to Chunk containing the data.
+ */
+void pub_data(Chunk::Chunk& chunk)
+{
+    memcpy(pub_msg.data, chunk.get_data(), chunk.get_len());
+    char src[12]; // Enough to store a 32 bit int.
+    uint32_t len = int_to_str(src, chunk.get_src());
+    memcpy(&(pub_msg.from.data), src, len);
+    pub.publish(&pub_msg);
+}
+
+/**
+ * @brief Converts a C-string into an int. Returns -1 if string is not an int.
  * TODO: Account for negative numbers.
  * 
  * @param str C-string to convert. 
  * @return int32_t converted int.
  */
-int32_t str_to_uint(const char* str)
+int32_t str_to_int(const char* str)
 {
     uint16_t num = 0;
     bool valid = false;
@@ -158,4 +173,17 @@ int32_t str_to_uint(const char* str)
     }
     if (!valid) return -1;
     return num;
+}
+
+/**
+ * @brief Converts an int into a C-string.
+ * 
+ * @param str pointer to char array to store converted string.
+ * @param integer int to convert.
+ * @return uint32_t the length of converted string.
+ */
+uint32_t int_to_str(char* str, int32_t integer)
+{
+    sprintf(str, "%ld\n", integer);
+    return strlen(str);
 }
