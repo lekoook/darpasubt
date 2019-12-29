@@ -106,10 +106,13 @@ namespace Chunk
      * 
      * @param data bytes array to store as a Chunk.
      * @param len length of bytes array (in bytes).
+     * @param src source address of this Chunk.
+     * @param dest destination address of this Chunk.
      */
-    Chunk::Chunk(uint8_t* data, uint16_t len, uint16_t dest) : 
+    Chunk::Chunk(uint8_t* data, uint16_t len, uint16_t src, uint16_t dest) : 
         len(len), 
-        segments_count(0), 
+        segments_count(0),
+        src(src),
         dest(dest),
         attempts(0),
         rssi(0)
@@ -131,6 +134,7 @@ namespace Chunk
     id(0),
     len(0),
     segments_count(0),
+    src(0),
     dest(0),
     attempts(0),
     rssi(0)

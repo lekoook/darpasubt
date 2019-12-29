@@ -135,7 +135,7 @@ void data_recv_cb(const talker_pkg::LoraPacket& to_transmit)
     // Fail silently if destination address is negative.
     if (dest >= 0)
     {
-        Chunk::Chunk new_chunk(to_transmit.data, to_transmit.data_length, dest);
+        Chunk::Chunk new_chunk(to_transmit.data, to_transmit.data_length, MESH_ADDRESS, dest);
         transporter.queue_chunk(new_chunk);
     }
 }

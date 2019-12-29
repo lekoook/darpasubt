@@ -79,7 +79,7 @@ namespace Chunk
 
         public:
         Chunk(void);
-        Chunk(uint8_t* data, uint16_t len, uint16_t dest);
+        Chunk(uint8_t* data, uint16_t len, uint16_t src, uint16_t dest);
         ~Chunk(void);
         
         void set_id(uint16_t id);
