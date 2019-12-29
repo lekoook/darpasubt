@@ -73,6 +73,7 @@ namespace Chunk
         uint16_t src;
         uint16_t dest;
         uint8_t attempts;
+        int8_t rssi;
         
         uint16_t gen_id(uint32_t seed);
 
@@ -83,6 +84,8 @@ namespace Chunk
         
         void set_id(uint16_t id);
         void set_src(uint16_t src);
+        void set_dest(uint16_t dest);
+        void set_rssi(int8_t rssi);
         void increment_attempts(void);
         uint16_t get_seg_count(void);
         uint16_t get_src(void);
@@ -91,6 +94,7 @@ namespace Chunk
         uint8_t* get_data(void);
         uint16_t get_len(void);
         uint8_t get_attempts(void);
+        int8_t get_rssi(void);
         void segment_data(uint8_t& src_addr);
         void assemble_seg(Segment segment);
         bool check_complete(void);

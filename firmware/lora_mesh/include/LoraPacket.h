@@ -20,6 +20,8 @@ namespace talker_pkg
       _to_type to;
       typedef std_msgs::String _from_type;
       _from_type from;
+      typedef int32_t _rssi_type;
+      _rssi_type rssi;
       uint32_t data_length;
       typedef uint8_t _data_type;
       _data_type st_data;
@@ -29,6 +31,7 @@ namespace talker_pkg
       header(),
       to(),
       from(),
+      rssi(0),
       data_length(0), data(NULL)
     {
     }
@@ -39,6 +42,16 @@ namespace talker_pkg
       offset += this->header.serialize(outbuffer + offset);
       offset += this->to.serialize(outbuffer + offset);
       offset += this->from.serialize(outbuffer + offset);
+      union {
+        int32_t real;
+        uint32_t base;
+      } u_rssi;
+      u_rssi.real = this->rssi;
+      *(outbuffer + offset + 0) = (u_rssi.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_rssi.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_rssi.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_rssi.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->rssi);
       *(outbuffer + offset + 0) = (this->data_length >> (8 * 0)) & 0xFF;
       *(outbuffer + offset + 1) = (this->data_length >> (8 * 1)) & 0xFF;
       *(outbuffer + offset + 2) = (this->data_length >> (8 * 2)) & 0xFF;
@@ -57,6 +70,17 @@ namespace talker_pkg
       offset += this->header.deserialize(inbuffer + offset);
       offset += this->to.deserialize(inbuffer + offset);
       offset += this->from.deserialize(inbuffer + offset);
+      union {
+        int32_t real;
+        uint32_t base;
+      } u_rssi;
+      u_rssi.base = 0;
+      u_rssi.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_rssi.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_rssi.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_rssi.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->rssi = u_rssi.real;
+      offset += sizeof(this->rssi);
       uint32_t data_lengthT = ((uint32_t) (*(inbuffer + offset))); 
       data_lengthT |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1); 
       data_lengthT |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2); 
@@ -74,7 +98,7 @@ namespace talker_pkg
     }
 
     const char * getType(){ return "talker_pkg/LoraPacket"; };
-    const char * getMD5(){ return "0a79a6cd41280104c18ae3b7fd4c6a66"; };
+    const char * getMD5(){ return "47239ccc011e5edd53de6d7bc7d74d2d"; };
 
   };
 

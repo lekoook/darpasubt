@@ -2,7 +2,7 @@
 #define common_h
 
 /* Configure address of node. Uncomment to set. */
-#define MESH_ADDRESS 0
+#define MESH_ADDRESS 1
 // #define MESH_ADDRESS 2
 // #define MESH_ADDRESS 3
 // #define MESH_ADDRESS 4

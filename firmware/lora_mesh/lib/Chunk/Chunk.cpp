@@ -111,7 +111,8 @@ namespace Chunk
         len(len), 
         segments_count(0), 
         dest(dest),
-        attempts(0)
+        attempts(0),
+        rssi(0)
     {
         memset(this->data, 0, MAX_DATA_SIZE);
         memset(this->segments, 0, SEGMENT_SIZE * MAX_SEG_CNT);
@@ -131,7 +132,8 @@ namespace Chunk
     len(0),
     segments_count(0),
     dest(0),
-    attempts(0)
+    attempts(0),
+    rssi(0)
     {
         memset(this->data, 0, MAX_DATA_SIZE);
         memset(this->segments, 0, SEGMENT_SIZE * MAX_SEG_CNT);
@@ -156,6 +158,26 @@ namespace Chunk
     void Chunk::set_src(uint16_t src)
     {
         this->src = src;
+    }
+
+    /**
+     * @brief Sets the destination address of this Chunk.
+     * 
+     * @param dest Destination address of this Chunk.
+     */
+    void Chunk::set_dest(uint16_t dest)
+    {
+        this->dest = dest;
+    }
+
+    /**
+     * @brief Sets the RSSI value of the latest received Segment for this Chunk.
+     * 
+     * @param rssi RSSI value to set.
+     */
+    void Chunk::set_rssi(int8_t rssi)
+    {
+        this->rssi = rssi;
     }
 
     /**
@@ -235,6 +257,16 @@ namespace Chunk
     uint8_t Chunk::get_attempts(void)
     {
         return this->attempts;
+    }
+
+    /**
+     * @brief Returns the RSSI value of the latest received Segment for this Chunk.
+     * 
+     * @return int8_t RSSI value.
+     */
+    int8_t Chunk::get_rssi(void)
+    {
+        return this->rssi;
     }
 
     /**

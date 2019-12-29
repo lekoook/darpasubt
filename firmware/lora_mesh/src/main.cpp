@@ -97,6 +97,7 @@ void setup()
 
     nh.initNode();
     nh.subscribe(sub);
+    nh.advertise(pub);
 
     #ifdef DEBUG_PRINT
     SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
@@ -111,7 +112,7 @@ void loop()
 {
     transporter.process_send_queue();
 
-    if (transporter.receive())
+    if (transporter.receive(driver))
     {
         if (transporter.get_one_chunk(recv_chunk))
         {
@@ -146,10 +147,24 @@ void data_recv_cb(const talker_pkg::LoraPacket& to_transmit)
  */
 void pub_data(Chunk::Chunk& chunk)
 {
+    // Copy over the payload.
     memcpy(pub_msg.data, chunk.get_data(), chunk.get_len());
-    char src[12]; // Enough to store a 32 bit int.
+    pub_msg.data_length = chunk.get_len();
+    
+    // Point to the source address of payload.
+    char src[12] = {0}; // Enough to store a 32 bit int.
     uint32_t len = int_to_str(src, chunk.get_src());
-    memcpy(&(pub_msg.from.data), src, len);
+    src[len] = '\0'; // Ensure string is null terminated.
+    pub_msg.from.data = src;
+
+    // Point to the destination (this device) address of payload.
+    char dest[12] = {0};
+    len = int_to_str(dest, chunk.get_dest());
+    dest[len] = '\0'; // Ensure string is null terminated.
+    pub_msg.to.data = dest;
+
+    // Copy over the RSSI value.
+    pub_msg.rssi = chunk.get_rssi();
     pub.publish(&pub_msg);
 }
 
@@ -176,7 +191,7 @@ int32_t str_to_int(const char* str)
 }
 
 /**
- * @brief Converts an int into a C-string.
+ * @brief Converts an int into a C-string, with no guarantee of null termination.
  * 
  * @param str pointer to char array to store converted string.
  * @param integer int to convert.
@@ -184,6 +199,5 @@ int32_t str_to_int(const char* str)
  */
 uint32_t int_to_str(char* str, int32_t integer)
 {
-    sprintf(str, "%ld\n", integer);
-    return strlen(str);
+    return (uint32_t) sprintf(str, "%ld", integer);
 }

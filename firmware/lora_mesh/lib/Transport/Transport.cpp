@@ -151,10 +151,11 @@ namespace Transport
     /**
      * @brief Receives a data Chunk from a source address.
      * 
+     * @param net_driver reference to the RadioHead driver used to transport messages.
      * @return true if a Chunk is completed pushed into the receive queue.
      * @return false if no Chunks are completed, nothing is pushed to received queue.
      */
-    bool Transport::receive(void)
+    bool Transport::receive(RHGenericDriver& net_driver)
     {
         uint8_t source = 0;
         uint8_t buf[SEGMENT_SIZE] = {0};
@@ -169,6 +170,8 @@ namespace Transport
                 if (process_segment(new_segment, new_chunk))
                 {
                     new_chunk.set_src(source);
+                    new_chunk.set_dest(MESH_ADDRESS);
+                    new_chunk.set_rssi(net_driver.lastRssi());
                     recv_queue.put(new_chunk);
                     return true;
                 }

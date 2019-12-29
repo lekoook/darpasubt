@@ -30,7 +30,7 @@ namespace Transport
             ~Transport(void);
             void queue_chunk(Chunk::Chunk chunk);
             void process_send_queue(void);
-            bool receive(void);
+            bool receive(RHGenericDriver& net_driver);
             bool get_one_chunk(Chunk::Chunk& recv_chunk);
     };
 }
