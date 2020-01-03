@@ -6,9 +6,10 @@
 #include <common.h>
 #include <Transport.h>
 #include <main.h>
-#include <ros.h>
+//#include <ros.h>
 #include <std_msgs/String.h>
 #include <LoraPacket.h>
+#include <FreeRTOS_TEENSY4.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -83,10 +84,10 @@ Transport::Transport transporter(MESH_ADDRESS, &mesh_manager);
 Chunk::Chunk recv_chunk;
 
 // ROS related
-ros::NodeHandle nh;
+/*ros::NodeHandle nh;
 talker_pkg::LoraPacket pub_msg;
 ros::Subscriber<talker_pkg::LoraPacket> sub("tx", &data_recv_cb);
-ros::Publisher pub("rx", &pub_msg);
+ros::Publisher pub("rx", &pub_msg);*/
 
 void setup() 
 {
@@ -95,9 +96,9 @@ void setup()
     while (!mesh_manager.init()) {}
     config_network(&driver, &mesh_manager);
 
-    nh.initNode();
+    /*nh.initNode();
     nh.subscribe(sub);
-    nh.advertise(pub);
+    nh.advertise(pub);*/
 
     #ifdef DEBUG_PRINT
     SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
@@ -106,21 +107,35 @@ void setup()
 
     pinMode(LED_BUILTIN, OUTPUT);
 }
-
-
+/*
+void serialReadTask() {
+    //Number of bytes in current serial read
+    uint8_t bytecount = 0;
+    //Number of bytes already read
+    static uint8_t offset = 0;
+    static uint8_t buffer[232];
+    static uint16_t length;
+    //Serial BUFFER FORMAT
+    // [ To     |  Length |    DATA    ]
+    // [ 1 Byte |  2 Bytes| n Bytes    ]
+    //Buffer is available in bunches of 64 bytes
+    while (Serial.available() && bytecount < 64 && bytecount + offset < 232) {
+        buffer[bytecount+offset] = Serial.read();
+        bytecount++;
+    }
+    if(bytecount > 3 && offset == 0) {
+        length = (uint16_t)buffer[0] << 8 + buffer[1];
+        offset += bytecount;
+        bytecount = 0;
+    }
+    if(bytecount + offset < length +3)
+        return;
+    if(bytecount + offset == length +3)
+        return 
+}*/
 void loop()
 {
-    transporter.process_send_queue();
-
-    if (transporter.receive(driver))
-    {
-        if (transporter.get_one_chunk(recv_chunk))
-        {
-            pub_data(recv_chunk);
-        }
-    }
-
-    nh.spinOnce();
+    //nh.spinOnce();
 }
 
 /**
@@ -148,7 +163,7 @@ void data_recv_cb(const talker_pkg::LoraPacket& to_transmit)
 void pub_data(Chunk::Chunk& chunk)
 {
     // Copy over the payload.
-    memcpy(pub_msg.data, chunk.get_data(), chunk.get_len());
+    /*memcpy(pub_msg.data, chunk.get_data(), chunk.get_len());
     pub_msg.data_length = chunk.get_len();
     
     // Point to the source address of payload.
@@ -165,7 +180,7 @@ void pub_data(Chunk::Chunk& chunk)
 
     // Copy over the RSSI value.
     pub_msg.rssi = chunk.get_rssi();
-    pub.publish(&pub_msg);
+    //pub.publish(&pub_msg);*/
 }
 
 /**
