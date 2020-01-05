@@ -6,8 +6,7 @@
 #include <common.h>
 #include <Transport.h>
 #include <main.h>
-//#include <ros.h>
-#include <std_msgs/String.h>
+#include <SerialParser.h>
 #include <LoraPacket.h>
 #include <FreeRTOS_TEENSY4.h>
 
@@ -96,10 +95,6 @@ void setup()
     while (!mesh_manager.init()) {}
     config_network(&driver, &mesh_manager);
 
-    /*nh.initNode();
-    nh.subscribe(sub);
-    nh.advertise(pub);*/
-
     #ifdef DEBUG_PRINT
     SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
     SHOW_SERIAL.println(F(MSG_WHOAMI));
@@ -107,37 +102,38 @@ void setup()
 
     pinMode(LED_BUILTIN, OUTPUT);
 }
-/*
-void serialReadTask() {
-    //Number of bytes in current serial read
-    uint8_t bytecount = 0;
-    //Number of bytes already read
-    static uint8_t offset = 0;
-    static uint8_t buffer[232];
-    static uint16_t length;
-    //Serial BUFFER FORMAT
-    // [ To     |  Length |    DATA    ]
-    // [ 1 Byte |  2 Bytes| n Bytes    ]
-    //Buffer is available in bunches of 64 bytes
-    while (Serial.available() && bytecount < 64 && bytecount + offset < 232) {
-        buffer[bytecount+offset] = Serial.read();
-        bytecount++;
-    }
-    if(bytecount > 3 && offset == 0) {
-        length = (uint16_t)buffer[0] << 8 + buffer[1];
-        offset += bytecount;
-        bytecount = 0;
-    }
-    if(bytecount + offset < length +3)
-        return;
-    if(bytecount + offset == length +3)
-        return 
-}*/
+
 void loop()
 {
-    //nh.spinOnce();
+    
+    serial_spin();
+    
+    transporter.process_send_queue();
+    if (transporter.receive(driver))
+    {
+        if (transporter.get_one_chunk(recv_chunk))
+        {
+            pub_data(recv_chunk);
+        }
+    }
+
 }
 
+/**
+ * Handle serial data
+ */ 
+void serial_spin(){
+
+    static SerialParser::SerialParser parser;
+
+    if(Serial.available()) {
+        uint8_t byte = Serial.read();
+        SerialParser::ParserState res = parser.addByteAndCheckIfComplete(byte); 
+        if(res == SerialParser::ParserState::PACKET_READY){
+            transporter.queue_chunk(parser.retrieveChunkAndReset(MESH_ADDRESS));
+        }
+    }
+}
 /**
  * @brief Callback function for receiving data to be transmitted from rosserial.
  * 
