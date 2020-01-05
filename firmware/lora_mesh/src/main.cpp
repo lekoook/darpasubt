@@ -135,48 +135,19 @@ void serial_spin(){
     }
 }
 /**
- * @brief Callback function for receiving data to be transmitted from rosserial.
- * 
- * @param to_transmit reference to the received data.
- */
-void data_recv_cb(const talker_pkg::LoraPacket& to_transmit)
-{
-    // Create a new chunk and push to queue.
-    int32_t dest = str_to_int(to_transmit.to.data);
-    // Fail silently if destination address is negative.
-    if (dest >= 0)
-    {
-        Chunk::Chunk new_chunk(to_transmit.data, to_transmit.data_length, MESH_ADDRESS, dest);
-        transporter.queue_chunk(new_chunk);
-    }
-}
-
-/**
- * @brief Publishes Chunk payload data onto ROS.
+ * @brief Publishes Chunk payload data to our custom protocol bus
  * 
  * @param chunk reference to Chunk containing the data.
  */
 void pub_data(Chunk::Chunk& chunk)
 {
     // Copy over the payload.
-    /*memcpy(pub_msg.data, chunk.get_data(), chunk.get_len());
-    pub_msg.data_length = chunk.get_len();
-    
-    // Point to the source address of payload.
-    char src[12] = {0}; // Enough to store a 32 bit int.
-    uint32_t len = int_to_str(src, chunk.get_src());
-    src[len] = '\0'; // Ensure string is null terminated.
-    pub_msg.from.data = src;
-
-    // Point to the destination (this device) address of payload.
-    char dest[12] = {0};
-    len = int_to_str(dest, chunk.get_dest());
-    dest[len] = '\0'; // Ensure string is null terminated.
-    pub_msg.to.data = dest;
-
-    // Copy over the RSSI value.
-    pub_msg.rssi = chunk.get_rssi();
-    //pub.publish(&pub_msg);*/
+    SerialParser::SerialResponsePacket  packet(chunk);
+    uint8_t* serialPacket = packet.serialize();
+    int length = packet.getLength();
+    if(Serial.dtr()) {
+        Serial.write(serialPacket, length);
+    }
 }
 
 /**
