@@ -49,7 +49,7 @@ SerialResponsePacket::SerialResponsePacket(Chunk::Chunk chunk) {
     buffer[0] = (uint8_t)SerialResponseMessageType::PACKET_RECIEVED;
     buffer[1] = (uint8_t)chunk.get_src(); //RESERVE ONLY 1 BYTE FOR ADDRESS
     buffer[2] = chunk.get_len() >> 8;
-    buffer[3] = chunk.get_len();
+    buffer[3] = chunk.get_len() & 0xFF;
     memcpy(buffer+4, chunk.get_data(), chunk.get_len());
     buffer[chunk.get_len() + 4] = chunk.get_rssi();
 }

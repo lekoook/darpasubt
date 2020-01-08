@@ -55,6 +55,8 @@ namespace SerialParser{
      * 
      * [0xFA       |  FROM    |   LENGTH     |      DATA        |  RSSI   ]
      * [1 byte     |  1 byte  |   2 bytes    |     n bytes      |  1 byte ]
+     * 
+     * [0xF1 | ]
      */ 
     class SerialResponsePacket {
         uint8_t buffer[256];
