@@ -76,6 +76,7 @@ void data_recv_cb(const talker_pkg::LoraPacket& to_transmit);
 void pub_data(Chunk::Chunk& chunk);
 int32_t str_to_int(const char* str);
 uint32_t int_to_str(char* str, int32_t integer);
+void serial_spin();
 
 // Class to manage message delivery and receipt, using the driver declared above
 RHMesh mesh_manager(driver, MESH_ADDRESS);
@@ -108,14 +109,14 @@ void loop()
     
     serial_spin();
     
-    transporter.process_send_queue();
+    /*transporter.process_send_queue();
     if (transporter.receive(driver))
     {
         if (transporter.get_one_chunk(recv_chunk))
         {
             pub_data(recv_chunk);
         }
-    }
+    }*/
 
 }
 
@@ -130,8 +131,13 @@ void serial_spin(){
         uint8_t byte = Serial.read();
         SerialParser::ParserState res = parser.addByteAndCheckIfComplete(byte); 
         if(res == SerialParser::ParserState::PACKET_READY){
-            transporter.queue_chunk(parser.retrieveChunkAndReset(MESH_ADDRESS));
+            //transporter.queue_chunk();
+            Chunk::Chunk chunk = parser.retrieveChunkAndReset(MESH_ADDRESS);
+            chunk.set_rssi(100);
+            chunk.set_src(1);
+            pub_data(chunk);
         }
+
     }
 }
 /**
