@@ -54,6 +54,15 @@ SerialResponsePacket::SerialResponsePacket(Chunk::Chunk chunk) {
     buffer[chunk.get_len() + 4] = chunk.get_rssi();
 }
 
+SerialResponsePacket::SerialResponsePacket(uint16_t concentration, float humidity, float temperature) {
+	this->length = 12;
+	buffer[0] = (uint8_t) SerialResponseMessageType::CO2_SENSOR_READING;
+	buffer[1] = 0xff; // alignment
+	memcpy(buffer+2, &concentration, sizeof(uint16_t));
+	memcpy(buffer+4, &humidity, sizeof(float));
+	memcpy(buffer+8, &temperature, sizeof(float));
+}
+
 uint8_t* SerialResponsePacket::serialize(){
     return buffer;
 }

@@ -57,15 +57,23 @@ namespace SerialParser{
      * [1 byte     |  1 byte  |   2 bytes    |     n bytes      |  1 byte ]
      * 
      * [0xF1 | ]
-     */ 
+	 *
+     * SerialResponsePacket for CO2 SENSOR READING
+     * 
+     * [0xFE       |  0xff    |   Concentration |    HUMIDITY    |  TEMPERATURE ]
+     * [1 byte     |  1 byte  |     uint16_t    |     float      |     float    ]
+     * 
+     * [0xF1 | ]
+    */ 
     class SerialResponsePacket {
         uint8_t buffer[256];
         int length;
     public:
         SerialResponsePacket(Chunk::Chunk chunk);
+        SerialResponsePacket(uint16_t concentration, float humidity, float temperature);
         uint8_t* serialize();
         int getLength();
     };
-}
+   }
 
 #endif

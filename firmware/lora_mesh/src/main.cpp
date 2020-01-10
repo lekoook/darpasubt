@@ -9,6 +9,7 @@
 #include <SerialParser.h>
 #include <LoraPacket.h>
 #include <FreeRTOS_TEENSY4.h>
+#include <SparkFun_SCD30_Arduino_Library.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -89,6 +90,11 @@ talker_pkg::LoraPacket pub_msg;
 ros::Subscriber<talker_pkg::LoraPacket> sub("tx", &data_recv_cb);
 ros::Publisher pub("rx", &pub_msg);*/
 
+// CO2 sensor
+SCD30 airSensor;
+// measurement interval in seconds >= 1
+#define AIR_MEAS_INTERVAL 2 
+
 void setup() 
 {
     SHOW_SERIAL.begin(SERIAL_BAUD_RATE);
@@ -102,6 +108,12 @@ void setup()
     #endif
 
     pinMode(LED_BUILTIN, OUTPUT);
+
+	// CO2 sensor setup
+	Wire.begin();
+	airSensor.begin();
+	airSensor.setMeasurementInterval(AIR_MEAS_INTERVAL);
+	
 }
 
 void loop()
@@ -117,6 +129,22 @@ void loop()
             pub_data(recv_chunk);
         }
     }*/
+
+	// CO2, humidity and temperature measurements
+	if(airSensor.dataAvailable()) {
+	 // Copy over the payload.
+		SerialParser::SerialResponsePacket  packet(airSensor.getCO2(), airSensor.getHumidity(), airSensor.getTemperature());
+		uint8_t* serialPacket = packet.serialize();
+		int length = packet.getLength();
+		if(Serial.dtr()) {
+			Serial.write(serialPacket, length);
+		}
+	} else {
+		Serial.println("no data from sensor");
+	}
+		
+	//delay(1000);
+
 
 }
 
