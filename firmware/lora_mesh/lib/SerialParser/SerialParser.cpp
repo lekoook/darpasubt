@@ -54,6 +54,14 @@ SerialResponsePacket::SerialResponsePacket(Chunk::Chunk chunk) {
     buffer[chunk.get_len() + 4] = chunk.get_rssi();
 }
 
+SerialResponsePacket::SerialResponsePacket(uint8_t thermalDataChunk[], int index, int length) {
+    this->length = length + 3;
+    buffer[0] = (uint8_t)SerialResponseMessageType::THERMAL_FRONT;
+    buffer[1] = (uint8_t)index;
+    buffer[2] = length;
+    memcpy(buffer + 3, thermalDataChunk, 192);
+}
+
 uint8_t* SerialResponsePacket::serialize(){
     return buffer;
 }

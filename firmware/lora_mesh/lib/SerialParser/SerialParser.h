@@ -56,13 +56,15 @@ namespace SerialParser{
      * [0xFA       |  FROM    |   LENGTH     |      DATA        |  RSSI   ]
      * [1 byte     |  1 byte  |   2 bytes    |     n bytes      |  1 byte ]
      * 
-     * [0xF1 | ]
+     * [0xFF       |  INDEX   |   LENGTH     |      DATA        ] 
+     * [1 byte     |  1 byte  |   1 byte     |     n bytes      ]
      */ 
     class SerialResponsePacket {
         uint8_t buffer[256];
         int length;
     public:
         SerialResponsePacket(Chunk::Chunk chunk);
+        SerialResponsePacket(uint8_t thermalDataChunk[], int index, int length);
         uint8_t* serialize();
         int getLength();
     };
