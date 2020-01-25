@@ -77,17 +77,13 @@ void pub_data(Chunk::Chunk& chunk);
 int32_t str_to_int(const char* str);
 uint32_t int_to_str(char* str, int32_t integer);
 void serial_spin();
+void notify_queue_empty();
 
 // Class to manage message delivery and receipt, using the driver declared above
 RHMesh mesh_manager(driver, MESH_ADDRESS);
 Transport::Transport transporter(MESH_ADDRESS, &mesh_manager);
 Chunk::Chunk recv_chunk;
 
-// ROS related
-/*ros::NodeHandle nh;
-talker_pkg::LoraPacket pub_msg;
-ros::Subscriber<talker_pkg::LoraPacket> sub("tx", &data_recv_cb);
-ros::Publisher pub("rx", &pub_msg);*/
 
 void setup() 
 {
@@ -109,33 +105,45 @@ void loop()
     
     serial_spin();
     
-    /*transporter.process_send_queue();
+    transporter.process_send_queue();
+    if(transporter.get_send_queue_length() == 0)
+       notify_queue_empty();
+
     if (transporter.receive(driver))
     {
         if (transporter.get_one_chunk(recv_chunk))
         {
             pub_data(recv_chunk);
         }
-    }*/
+    }
+}
 
+/**
+ * Notify the host that the 
+ */  
+void notify_queue_empty(){
+    SerialParser::LoraStatusReady ready;
+    SerialParser::SerialResponsePacket packet(ready);
+    if(Serial.dtr())
+        Serial.write(packet.serialize(), packet.getLength());
 }
 
 /**
  * Handle serial data
  */ 
 void serial_spin(){
-
     static SerialParser::SerialParser parser;
 
     if(Serial.available()) {
         uint8_t byte = Serial.read();
+
         SerialParser::ParserState res = parser.addByteAndCheckIfComplete(byte); 
         if(res == SerialParser::ParserState::PACKET_READY){
-            //transporter.queue_chunk();
+            
             Chunk::Chunk chunk = parser.retrieveChunkAndReset(MESH_ADDRESS);
             chunk.set_rssi(100);
             chunk.set_src(1);
-            pub_data(chunk);
+            transporter.queue_chunk(chunk);
         }
 
     }
