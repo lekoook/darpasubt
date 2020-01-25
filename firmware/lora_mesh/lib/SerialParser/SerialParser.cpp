@@ -54,6 +54,11 @@ SerialResponsePacket::SerialResponsePacket(Chunk::Chunk chunk) {
     buffer[chunk.get_len() + 4] = chunk.get_rssi();
 }
 
+SerialResponsePacket::SerialResponsePacket(LoraStatusReady ready){
+    this->length = 1;
+    buffer[0] = (uint8_t)SerialResponseMessageType::LORA_STATUS_READY;
+}
+
 uint8_t* SerialResponsePacket::serialize(){
     return buffer;
 }

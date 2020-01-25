@@ -23,15 +23,18 @@ namespace SerialParser{
         THERMAL_TOP = 0xF1,
         DEBUG = 0xF2
     };
+    class LoraStatusReady{};
     /**
      * Serial Parser protocol: 
      */ 
     class SerialParser {
         bool awaitingPackets;
-        uint16_t desiredLength;
-        uint16_t currentLength;
+        
+       
         uint8_t buffer[MAX_CHUNK_SIZE];
     public:
+     uint16_t currentLength;
+        uint16_t desiredLength;
    
         SerialParser();
 
@@ -63,6 +66,7 @@ namespace SerialParser{
         int length;
     public:
         SerialResponsePacket(Chunk::Chunk chunk);
+        SerialResponsePacket(LoraStatusReady statusReady);
         uint8_t* serialize();
         int getLength();
     };
