@@ -52,6 +52,10 @@ namespace Transport
         }
     }
 
+    int Transport::get_send_queue_length(void) {
+        return send_queue.size();
+    }
+
     /**
      * @brief Sends a data Chunk to a given destination address.
      * 
