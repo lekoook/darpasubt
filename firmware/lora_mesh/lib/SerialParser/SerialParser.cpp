@@ -59,6 +59,11 @@ SerialResponsePacket::SerialResponsePacket(LoraStatusReady ready){
     buffer[0] = (uint8_t)SerialResponseMessageType::LORA_STATUS_READY;
 }
 
+SerialResponsePacket::SerialResponsePacket(MeshAddress mesh) {
+    this->length = 2;
+    buffer[0] = (uint8_t)SerialResponseMessageType::PHYSICAL_ADDRESS;
+    buffer[1] = mesh.address;
+}
 uint8_t* SerialResponsePacket::serialize(){
     return buffer;
 }

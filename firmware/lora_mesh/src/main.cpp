@@ -8,7 +8,6 @@
 #include <main.h>
 #include <SerialParser.h>
 #include <LoraPacket.h>
-#include <FreeRTOS_TEENSY4.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -102,7 +101,7 @@ void setup()
 
 void loop()
 {
-    
+    static int count;
     serial_spin();
     
     transporter.process_send_queue();
@@ -116,6 +115,11 @@ void loop()
             pub_data(recv_chunk);
         }
     }
+
+    count++;
+    if(count%8 == 0) {
+        sendAddress();
+    }
 }
 
 /**
@@ -124,6 +128,16 @@ void loop()
 void notify_queue_empty(){
     SerialParser::LoraStatusReady ready;
     SerialParser::SerialResponsePacket packet(ready);
+    if(Serial.dtr())
+        Serial.write(packet.serialize(), packet.getLength());
+}
+
+/**
+ * Send address
+ */
+void sendAddress() {
+    SerialParser::MeshAddress address(MESH_ADDRESS);
+    SerialParser::SerialResponsePacket packet(address);
     if(Serial.dtr())
         Serial.write(packet.serialize(), packet.getLength());
 }

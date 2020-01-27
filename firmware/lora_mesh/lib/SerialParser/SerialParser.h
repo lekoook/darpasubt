@@ -21,9 +21,15 @@ namespace SerialParser{
         CO2_SENSOR_READING = 0xFE,
         THERMAL_FRONT = 0xFF,
         THERMAL_TOP = 0xF1,
-        DEBUG = 0xF2
+        DEBUG = 0xF2,
+        PHYSICAL_ADDRESS = 0xF0
     };
     class LoraStatusReady{};
+    class MeshAddress{
+        public:
+        uint8_t address;
+        MeshAddress(uint8_t _addr): address(_addr){};
+    };
     /**
      * Serial Parser protocol: 
      */ 
@@ -67,6 +73,7 @@ namespace SerialParser{
     public:
         SerialResponsePacket(Chunk::Chunk chunk);
         SerialResponsePacket(LoraStatusReady statusReady);
+        SerialResponsePacket(MeshAddress meshaddress);
         uint8_t* serialize();
         int getLength();
     };
