@@ -41,4 +41,8 @@
 #define MSG_INIT_FAILED "Initialisation failed"
 #define MSG_WHOAMI "I am address " STR(MESH_ADDRESS)
 
+
+#define SONAR_FRONT_TRIG 9
+#define SONAR_FRONT_ECHO 10
+#define 
 #endif

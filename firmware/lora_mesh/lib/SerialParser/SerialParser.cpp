@@ -64,6 +64,16 @@ SerialResponsePacket::SerialResponsePacket(MeshAddress mesh) {
     buffer[0] = (uint8_t)SerialResponseMessageType::PHYSICAL_ADDRESS;
     buffer[1] = mesh.address;
 }
+
+SerialResponsePacket::SerialResponsePacket(SonarReading reading) {
+    this->length = 3;
+    if(reading.sonarLocation == SonarLocation::SONAR_BOTTOM)
+        buffer[0] = (uint8_t)SerialResponseMessageType::SONAR_BOTTOM; 
+    else if(reading.sonarLocation == SonarLocation::SONAR_FRONT)
+        buffer[0] = (uint8_t)SerialResponseMessageType::SONAR_FRONT;
+    buffer[1] = reading.range >> 8;
+    buffer[2] = reading.range  & 0XFF;
+}
 uint8_t* SerialResponsePacket::serialize(){
     return buffer;
 }

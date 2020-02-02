@@ -22,21 +22,33 @@ namespace SerialParser{
         THERMAL_FRONT = 0xFF,
         THERMAL_TOP = 0xF1,
         DEBUG = 0xF2,
-        PHYSICAL_ADDRESS = 0xF0
+        PHYSICAL_ADDRESS = 0xF0,
+        SONAR_FRONT = 0xF3,
+        SONAR_BOTTOM = 0xF4
     };
+
+    enum class SonarLocation: uint8_t {
+        SONAR_FRONT = 0xF3,
+        SONAR_BOTTOM = 0xF4
+    };
+
     class LoraStatusReady{};
     class MeshAddress{
         public:
         uint8_t address;
         MeshAddress(uint8_t _addr): address(_addr){};
     };
+    class SonarReading {
+        public:
+        SonarLocation sonarLocation;
+        uint16_t range;
+        SonarReading(SonarLocation _sonarLocation, uint16_t _range): sonarLocation(_sonarLocation), range(_range) {};
+    };
     /**
      * Serial Parser protocol: 
      */ 
     class SerialParser {
         bool awaitingPackets;
-        
-       
         uint8_t buffer[MAX_CHUNK_SIZE];
     public:
      uint16_t currentLength;
@@ -74,6 +86,7 @@ namespace SerialParser{
         SerialResponsePacket(Chunk::Chunk chunk);
         SerialResponsePacket(LoraStatusReady statusReady);
         SerialResponsePacket(MeshAddress meshaddress);
+        SerialResponsePacket(SonarReading sonarReading);
         uint8_t* serialize();
         int getLength();
     };

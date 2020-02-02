@@ -120,8 +120,27 @@ void loop()
     if(count%8 == 0) {
         sendAddress();
     }
+
 }
 
+/**
+ * Read ping sonar and prevent it from falling over
+ */ 
+void readSonarBottom() {
+
+}
+
+/**
+ * Read HC-SR04 to check for glass
+ */
+void readSonarForward() {
+    digitalWrite(Trig_pin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(Trig_pin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(Trig_pin, LOW);
+    duration = pulseIn(Echo_pin,HIGH);
+}
 /**
  * Notify the host that the 
  */  
