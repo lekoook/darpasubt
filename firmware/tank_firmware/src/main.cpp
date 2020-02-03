@@ -12,7 +12,7 @@
 #define RIGHT_WHEEL_ENCODER_PIN_FORWARD 18
 #define RIGHT_WHEEL_ENCODER_PIN_REVERSE 19
 #define PWM_PERIOD 16540
-#define MAX_SPEED 0.2
+#define MAX_SPEED 0.1
 #define MAX_ANGULAR_SPEED 0.2
 #define ROTATIONS_PER_CM 37
 
@@ -115,7 +115,7 @@ void onTwistCmdRecieved(const geometry_msgs::Twist& twist) {
   }
   stopped = false;
   yaw_delay = 1500 - twist.angular.z/MAX_ANGULAR_SPEED*500;
-  speed_delay = 1500 + twist.linear.x/MAX_SPEED*500;
+  speed_delay = 1500 - twist.linear.x/MAX_SPEED*500;
 
   
   PRINT("Got Yaw Delay %d\n", yaw_delay);
