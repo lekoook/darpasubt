@@ -5,7 +5,7 @@
 #include <geometry_msgs/Twist.h>
 #include <ros.h>
 
-#define YAW_PIN 13
+#define YAW_PIN 11
 #define SPEED_PIN 12
 #define LEFT_WHEEL_ENCODER_PIN_FORWARD 2
 #define LEFT_WHEEL_ENCODER_PIN_REVERSE 3
@@ -13,7 +13,7 @@
 #define RIGHT_WHEEL_ENCODER_PIN_REVERSE 19
 #define PWM_PERIOD 16540
 #define MAX_SPEED 0.1
-#define MAX_ANGULAR_SPEED 0.2
+#define MAX_ANGULAR_SPEED 0.33
 #define ROTATIONS_PER_CM 37
 
 
@@ -109,13 +109,29 @@ void rightWheelEncoderInt()  {
 // ROS Handling
 
 void onTwistCmdRecieved(const geometry_msgs::Twist& twist) {
-  if (twist.angular.z ==0 && twist.linear.x == 0) {
+  double angularVel = twist.angular.z;
+  double linearVel = twist.linear.x;
+
+  if (angularVel == 0 && linearVel == 0) {
     stopped = true;
     return;
   }
+
+  if (abs(angularVel) > MAX_ANGULAR_SPEED) {
+    angularVel = (double)(angularVel * MAX_ANGULAR_SPEED) / abs(angularVel);
+    PRINT_STR("TGV Twist Angular Command exceeded limits, \
+              Capped to max angular speed instead");
+  }
+
+  if (abs(linearVel) > MAX_SPEED) {
+    linearVel = (double)(linearVel * MAX_SPEED) / abs(linearVel);
+    PRINT_STR("TGV Twist Linear Velocity Command exceeded limits, \
+              Capped to max linear speed instead");
+  }
+
   stopped = false;
-  yaw_delay = 1500 - twist.angular.z/MAX_ANGULAR_SPEED*500;
-  speed_delay = 1500 - twist.linear.x/MAX_SPEED*500;
+  yaw_delay = 1500 - angularVel/MAX_ANGULAR_SPEED*500;
+  speed_delay = 1500 - linearVel/MAX_SPEED*500;
 
   
   PRINT("Got Yaw Delay %d\n", yaw_delay);
