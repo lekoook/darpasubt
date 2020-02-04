@@ -2,6 +2,7 @@
 #include <stdint.h>
 //#include <Arduino_FreeRTOS.h>
 #include <std_msgs/Int16.h>
+#include <sensor_msgs/Range.h>
 #include <geometry_msgs/Twist.h>
 #include <ros.h>
 
@@ -16,6 +17,8 @@
 #define MAX_ANGULAR_SPEED 0.2
 #define ROTATIONS_PER_CM 37
 
+#define BOTTOM_SONAR_TRIG 20
+#define BOTTOM_SONAR_ECHO 21
 
 // Ugly looking macro for printing debug statements
 char sprintfData[100];
@@ -51,8 +54,11 @@ ros::NodeHandle  nh;
 ros::Subscriber<geometry_msgs::Twist> commandSub("cmd_vel", &onTwistCmdRecieved);
 std_msgs::Int16 leftWheelTicksMsg;
 std_msgs::Int16 rightWheelTicksMsg;
+sensor_msgs::Range frontSonarMsg;
+sensor_msgs::Range bottomSonarMsg;
 ros::Publisher leftWheelOdomPub("lwheel", &leftWheelTicksMsg);
 ros::Publisher rightWheelOdomPub("rwheel", &rightWheelTicksMsg);
+ros::Publisher bottomSonarPub("ultrasound/bottom", &bottomSonarMsg);
 
 void setup() {
   setupEncoderInterrupts();
@@ -60,6 +66,8 @@ void setup() {
   nh.initNode();
   nh.advertise(leftWheelOdomPub);
   nh.advertise(rightWheelOdomPub);
+  nh.advertise(frontSonarPub);
+  nh.advertise(bottomSonarPub);
   nh.subscribe(commandSub);
   PRINT_STR("Node Fully Initialized");
 }
@@ -104,8 +112,46 @@ void rightWheelEncoderInt()  {
                       &rightWheelTicks, &rightWheelDistCm, 2*ROTATIONS_PER_CM);
 }
 
+inline long microsecondsToCentimeters(long microseconds) {
+  return microseconds / 29 / 2;
+}
 
+long readPingSonar(int pingPin) {
+  long duration;
 
+  // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  pinMode(pingPin, OUTPUT);
+  digitalWrite(pingPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pingPin, LOW);
+
+  // The same pin is used to read the signal from the PING))): a HIGH pulse
+  // whose duration is the time (in microseconds) from the sending of the ping
+  // to the reception of its echo off of an object.
+  pinMode(pingPin, INPUT);
+  duration = pulseIn(pingPin, HIGH);
+
+  // convert the time into a distance
+  return microsecondsToCentimeters(duration);
+}
+
+long readHC04Sonar(int trigPin, int echoPin) {
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  long duration = pulseIn(echoPin, HIGH);
+  // Calculating the distance
+  return microsecondsToCentimeters(duration);
+}
 // ROS Handling
 
 void onTwistCmdRecieved(const geometry_msgs::Twist& twist) {
@@ -130,9 +176,14 @@ void rosTask(void* pvParameters) {
 
     leftWheelTicksMsg.data = leftWheelDistCm;
     rightWheelTicksMsg.data = rightWheelDistCm;
-    
     leftWheelOdomPub.publish(&leftWheelTicksMsg);
     rightWheelOdomPub.publish(&rightWheelTicksMsg);
+    bottomSonarMsg.header.frame_id = "BOTTOM_SONAR";
+    bottomSonarMsg.header.stamp = nh.now();
+    bottomSonarMsg.range = 0.01f*(float)readHC04Sonar(BOTTOM_SONAR_TRIG, BOTTOM_SONAR_ECHO);
+    bottomSonarMsg.min_range = 0.02;
+    bottomSonarMsg.max_range = 4;
+    bottomSonarPub.publish(&frontSonarMsg);
   }
 }
 
