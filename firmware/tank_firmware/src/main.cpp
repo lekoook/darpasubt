@@ -66,7 +66,6 @@ void setup() {
   nh.initNode();
   nh.advertise(leftWheelOdomPub);
   nh.advertise(rightWheelOdomPub);
-  nh.advertise(frontSonarPub);
   nh.advertise(bottomSonarPub);
   nh.subscribe(commandSub);
   PRINT_STR("Node Fully Initialized");
@@ -106,7 +105,7 @@ void leftWheelEncoderInt() {
                       &leftWheelTicks, &leftWheelDistCm, ROTATIONS_PER_CM);
 }
 
-void rightWheelEncoderInt()  {
+void rightWheelEncoderInt()  { 
   // weird x 2 rotations for right wheel???
   wheelEncoderHandler(RIGHT_WHEEL_ENCODER_PIN_FORWARD, RIGHT_WHEEL_ENCODER_PIN_REVERSE,
                       &rightWheelTicks, &rightWheelDistCm, 2*ROTATIONS_PER_CM);
