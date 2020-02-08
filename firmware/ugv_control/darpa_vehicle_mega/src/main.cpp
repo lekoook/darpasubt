@@ -9,7 +9,7 @@
  * 
  * Motor A - PWM: Pin 11 Dir: 26
  * Motor B - PWM: Pin 12 Dir: 27
- * Motor C - PWM: Pin 13 Dir: 28
+ * Motor C - PWM: Pin 9 Dir: 28
  * Motor D - PWM: Pin 10 Dir: 29
  * 
  * Servo A - PWM: Pin 6
