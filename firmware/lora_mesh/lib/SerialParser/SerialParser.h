@@ -3,16 +3,27 @@
 
 #include <stdint.h>
 #include <Chunk.h>
+#include <PWMServo.h>
 
 #define MAX_CHUNK_SIZE 240
 
-namespace SerialParser{
+namespace SerialParser {
+
+#define SERVO0_PIN 2
+#define SERVO1_PIN 3
+	extern PWMServo Servo0;
+	extern PWMServo Servo1;
+
+	void drop_communication_node(uint8_t device);
+	void setup_servos();
+
     enum class ParserState {
         PACKET_INCOMPLETE,
         PACKET_READY,
         ERROR,
-        AWAITING_PACKET
-    };
+        AWAITING_PACKET, // actually waiting for first packet only
+		AWAITING_DROP_ID
+	};
     enum class SerialResponseMessageType: uint8_t {
         PACKET_RECIEVED = 0xFA,
         PACKET_SENT = 0xFB,
@@ -21,13 +32,16 @@ namespace SerialParser{
         CO2_SENSOR_READING = 0xFE,
         THERMAL_FRONT = 0xFF,
         THERMAL_TOP = 0xF1,
-        DEBUG = 0xF2
+        DEBUG = 0xF2,
+		DROP_NODE = 0xF3
     };
+
     /**
      * Serial Parser protocol: 
      */ 
     class SerialParser {
-        bool awaitingPackets;
+		SerialResponseMessageType messageType;
+		ParserState parserState;
         uint16_t desiredLength;
         uint16_t currentLength;
         uint8_t buffer[MAX_CHUNK_SIZE];

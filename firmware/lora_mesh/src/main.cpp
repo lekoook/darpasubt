@@ -2,19 +2,18 @@
 
 #include <RH_RF95.h>
 #include <RHMesh.h>
-#include <SoftwareSerial.h>
 #include <common.h>
 #include <Transport.h>
 #include <main.h>
-#include <SerialParser.h>
 #include <LoraPacket.h>
 #include <FreeRTOS_TEENSY4.h>
 #include <SparkFun_SCD30_Arduino_Library.h>
+#include <SoftwareSerial.h>
+#include <SerialParser.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
-
 
 
 #ifdef USE_SOFTWARE_SERIAL
@@ -92,6 +91,7 @@ ros::Publisher pub("rx", &pub_msg);*/
 
 // CO2 sensor
 SCD30 airSensor;
+
 // measurement interval in seconds >= 1
 #define AIR_MEAS_INTERVAL 2 
 
@@ -114,6 +114,8 @@ void setup()
 	airSensor.begin();
 	airSensor.setMeasurementInterval(AIR_MEAS_INTERVAL);
 	
+	// drop node setup
+	SerialParser::setup_servos();
 }
 
 void loop()
@@ -217,3 +219,6 @@ uint32_t int_to_str(char* str, int32_t integer)
 {
     return (uint32_t) sprintf(str, "%ld", integer);
 }
+
+
+
