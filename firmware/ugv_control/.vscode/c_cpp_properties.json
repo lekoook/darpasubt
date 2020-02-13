@@ -1,0 +1,26 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "",
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "includePath": [
+        "/home/arjo/Desktop/catkin_ws/devel/include/**",
+        "/opt/ros/melodic/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/amapper/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/data_compresor/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/localization_manager/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/mission_planner/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/realsense-ros/realsense-ros/realsense2_camera/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/rf2o_laser_odometry/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/management_gui/rqt_example/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/simple_obstacle_avoidance/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/teensy_bridge/include/**",
+        "/home/arjo/Desktop/catkin_ws/src/thermal_camera/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS"
+    }
+  ]
+}
