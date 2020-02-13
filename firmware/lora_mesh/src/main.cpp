@@ -77,6 +77,7 @@ int32_t str_to_int(const char* str);
 uint32_t int_to_str(char* str, int32_t integer);
 void serial_spin();
 void notify_queue_empty();
+void sendAddress();
 
 // Class to manage message delivery and receipt, using the driver declared above
 RHMesh mesh_manager(driver, MESH_ADDRESS);
@@ -134,12 +135,12 @@ void readSonarBottom() {
  * Read HC-SR04 to check for glass
  */
 void readSonarForward() {
-    digitalWrite(Trig_pin, LOW);
+    /*digitalWrite(Trig_pin, LOW);
     delayMicroseconds(2);
     digitalWrite(Trig_pin, HIGH);
     delayMicroseconds(10);
     digitalWrite(Trig_pin, LOW);
-    duration = pulseIn(Echo_pin,HIGH);
+    duration = pulseIn(Echo_pin,HIGH);*/
 }
 /**
  * Notify the host that the 

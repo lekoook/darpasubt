@@ -187,8 +187,7 @@ void rosTask(void* pvParameters) {
   while(true) {
     nh.spinOnce();
     for(int i =0; i < 10; i++)
-    writePin();
-
+      writePin();
     leftWheelTicksMsg.data = leftWheelDistCm;
     rightWheelTicksMsg.data = rightWheelDistCm;
     leftWheelOdomPub.publish(&leftWheelTicksMsg);
