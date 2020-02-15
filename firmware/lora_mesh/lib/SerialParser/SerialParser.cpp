@@ -85,6 +85,34 @@ SerialResponsePacket::SerialResponsePacket(uint16_t concentration, float humidit
 	memcpy(buffer+8, &temperature, sizeof(float));
 }
 
+SerialResponsePacket::SerialResponsePacket(LoraStatusReady ready){
+    this->length = 1;
+    buffer[0] = (uint8_t)SerialResponseMessageType::LORA_STATUS_READY;
+}
+
+SerialResponsePacket::SerialResponsePacket(MeshAddress mesh) {
+    this->length = 2;
+    buffer[0] = (uint8_t)SerialResponseMessageType::PHYSICAL_ADDRESS;
+    buffer[1] = mesh.address;
+}
+
+SerialResponsePacket::SerialResponsePacket(SonarReading reading) {
+    this->length = 3;
+    if(reading.sonarLocation == SonarLocation::SONAR_BOTTOM)
+        buffer[0] = (uint8_t)SerialResponseMessageType::SONAR_BOTTOM; 
+    else if(reading.sonarLocation == SonarLocation::SONAR_FRONT)
+        buffer[0] = (uint8_t)SerialResponseMessageType::SONAR_FRONT;
+    buffer[1] = reading.range >> 8;
+    buffer[2] = reading.range  & 0XFF;
+}
+SerialResponsePacket::SerialResponsePacket(uint8_t thermalDataChunk[], int index, int length) {
+    this->length = length + 3;
+    buffer[0] = (uint8_t)SerialResponseMessageType::THERMAL_FRONT;
+    buffer[1] = (uint8_t)index;
+    buffer[2] = length;
+    memcpy(buffer + 3, thermalDataChunk, 192);
+}
+
 uint8_t* SerialResponsePacket::serialize(){
     return buffer;
 }

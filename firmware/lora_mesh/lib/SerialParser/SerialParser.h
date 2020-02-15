@@ -33,7 +33,28 @@ namespace SerialParser {
         THERMAL_FRONT = 0xFF,
         THERMAL_TOP = 0xF1,
         DEBUG = 0xF2,
-		DROP_NODE = 0xF3
+		DROP_NODE = 0xF5,
+        PHYSICAL_ADDRESS = 0xF0,
+        SONAR_FRONT = 0xF3,
+        SONAR_BOTTOM = 0xF4
+    };
+
+    enum class SonarLocation: uint8_t {
+        SONAR_FRONT = 0xF3,
+        SONAR_BOTTOM = 0xF4
+    };
+
+    class LoraStatusReady{};
+    class MeshAddress{
+        public:
+        uint8_t address;
+        MeshAddress(uint8_t _addr): address(_addr){};
+    };
+    class SonarReading {
+        public:
+        SonarLocation sonarLocation;
+        uint16_t range;
+        SonarReading(SonarLocation _sonarLocation, uint16_t _range): sonarLocation(_sonarLocation), range(_range) {};
     };
 
     /**
@@ -44,8 +65,11 @@ namespace SerialParser {
 		ParserState parserState;
         uint16_t desiredLength;
         uint16_t currentLength;
+        bool awaitingPackets;
         uint8_t buffer[MAX_CHUNK_SIZE];
     public:
+     uint16_t currentLength;
+        uint16_t desiredLength;
    
         SerialParser();
 
@@ -70,21 +94,19 @@ namespace SerialParser {
      * [0xFA       |  FROM    |   LENGTH     |      DATA        |  RSSI   ]
      * [1 byte     |  1 byte  |   2 bytes    |     n bytes      |  1 byte ]
      * 
-     * [0xF1 | ]
-	 *
-     * SerialResponsePacket for CO2 SENSOR READING
-     * 
-     * [0xFE       |  0xff    |   Concentration |    HUMIDITY    |  TEMPERATURE ]
-     * [1 byte     |  1 byte  |     uint16_t    |     float      |     float    ]
-     * 
-     * [0xF1 | ]
-    */ 
+     * [0xFF       |  INDEX   |   LENGTH     |      DATA        ] 
+     * [1 byte     |  1 byte  |   1 byte     |     n bytes      ]
+     */ 
     class SerialResponsePacket {
         uint8_t buffer[256];
         int length;
     public:
         SerialResponsePacket(Chunk::Chunk chunk);
         SerialResponsePacket(uint16_t concentration, float humidity, float temperature);
+        SerialResponsePacket(LoraStatusReady statusReady);
+        SerialResponsePacket(MeshAddress meshaddress);
+        SerialResponsePacket(SonarReading sonarReading);
+        SerialResponsePacket(uint8_t thermalDataChunk[], int index, int length);
         uint8_t* serialize();
         int getLength();
     };

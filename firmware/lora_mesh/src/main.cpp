@@ -10,6 +10,9 @@
 #include <SparkFun_SCD30_Arduino_Library.h>
 #include <SoftwareSerial.h>
 #include <SerialParser.h>
+#include <ThermalImager.h>
+#include <Wire.h>
+#include <Arduino.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -77,17 +80,22 @@ void pub_data(Chunk::Chunk& chunk);
 int32_t str_to_int(const char* str);
 uint32_t int_to_str(char* str, int32_t integer);
 void serial_spin();
+void notify_queue_empty();
+void sendAddress();
 
 // Class to manage message delivery and receipt, using the driver declared above
 RHMesh mesh_manager(driver, MESH_ADDRESS);
 Transport::Transport transporter(MESH_ADDRESS, &mesh_manager);
 Chunk::Chunk recv_chunk;
 
-// ROS related
-/*ros::NodeHandle nh;
-talker_pkg::LoraPacket pub_msg;
-ros::Subscriber<talker_pkg::LoraPacket> sub("tx", &data_recv_cb);
-ros::Publisher pub("rx", &pub_msg);*/
+
+//Thermal cam params
+#define addrFront 0x33
+#define addrTop 0x33
+paramsMLX90640 paramsFront;
+paramsMLX90640 paramsTop;
+static float resultFront[768];
+static float resultTop[768];
 
 // CO2 sensor
 SCD30 airSensor;
@@ -117,20 +125,59 @@ void setup()
 	// drop node setup
 	SerialParser::setup_servos();
 }
+int count = 0;
+bool runonce = true;
 
 void loop()
-{
-    
+{   
+    // if (runonce) {
+    //     setupThermal(addrFront);
+    //     getEeparams(addrFront, &paramsFront);
+    // }
+    // uint16_t eedata[832];
+    // for (int i = 0; i < 832; i++) {
+    //     eedata[i] = 0;
+    // }
+    // MLX90640_DumpEE(0x33, eedata);
+    // getFrameData(addrFront, &paramsFront, resultFront);
+    // for (int i = 0; i < 832; i++) {
+    //     Serial.println(resultFront[i]);
+    // }
+    // delay(500);
+
+    if (runonce) {
+        count++;
+        // Serial.print("count ");
+        // Serial.println(count);
+        runonce = false;
+        Serial.println("setting up thermal");
+        setupThermal((uint8_t)addrFront); 
+        getEeparams((uint8_t)addrFront, &paramsFront);
+        Serial.println(paramsFront.kVdd);
+    }
+    getFrameData((uint8_t)addrFront, &paramsFront, resultFront);
+    uint8_t asciiRes[768];
+    floatToUint8(resultFront, asciiRes);
+    pubThermal(asciiRes);
+
     serial_spin();
     
-    /*transporter.process_send_queue();
+    transporter.process_send_queue();
+    if(transporter.get_send_queue_length() == 0)
+       notify_queue_empty();
+
     if (transporter.receive(driver))
     {
         if (transporter.get_one_chunk(recv_chunk))
         {
             pub_data(recv_chunk);
         }
-    }*/
+    }
+
+    count++;
+    if(count%8 == 0) {
+        sendAddress();
+    }
 
 	// CO2, humidity and temperature measurements
 	if(airSensor.dataAvailable()) {
@@ -151,21 +198,59 @@ void loop()
 }
 
 /**
+ * Read ping sonar and prevent it from falling over
+ */ 
+void readSonarBottom() {
+
+}
+
+/**
+ * Read HC-SR04 to check for glass
+ */
+void readSonarForward() {
+    /*digitalWrite(Trig_pin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(Trig_pin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(Trig_pin, LOW);
+    duration = pulseIn(Echo_pin,HIGH);*/
+}
+/**
+ * Notify the host that the 
+ */  
+void notify_queue_empty(){
+    SerialParser::LoraStatusReady ready;
+    SerialParser::SerialResponsePacket packet(ready);
+    if(Serial.dtr())
+        Serial.write(packet.serialize(), packet.getLength());
+}
+
+/**
+ * Send address
+ */
+void sendAddress() {
+    SerialParser::MeshAddress address(MESH_ADDRESS);
+    SerialParser::SerialResponsePacket packet(address);
+    if(Serial.dtr())
+        Serial.write(packet.serialize(), packet.getLength());
+}
+
+/**
  * Handle serial data
  */ 
 void serial_spin(){
-
     static SerialParser::SerialParser parser;
 
     if(Serial.available()) {
         uint8_t byte = Serial.read();
+
         SerialParser::ParserState res = parser.addByteAndCheckIfComplete(byte); 
         if(res == SerialParser::ParserState::PACKET_READY){
-            //transporter.queue_chunk();
+            
             Chunk::Chunk chunk = parser.retrieveChunkAndReset(MESH_ADDRESS);
             chunk.set_rssi(100);
             chunk.set_src(1);
-            pub_data(chunk);
+            transporter.queue_chunk(chunk);
         }
 
     }
@@ -219,6 +304,4 @@ uint32_t int_to_str(char* str, int32_t integer)
 {
     return (uint32_t) sprintf(str, "%ld", integer);
 }
-
-
 

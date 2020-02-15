@@ -2,7 +2,7 @@
 #define common_h
 
 /* Configure address of node. Uncomment to set. */
-#define MESH_ADDRESS 1
+#define MESH_ADDRESS 0
 // #define MESH_ADDRESS 2
 // #define MESH_ADDRESS 3
 // #define MESH_ADDRESS 4
@@ -23,8 +23,8 @@
 #endif
 
 /* Network configuration values. */
-#define TX_POWER 13 // 13 is default for RadioHead RF95.
-#define RE_TX_RETRIES 3 // Number of retransmissions. 0 to transmit only once.
+#define TX_POWER 20 // 13 is default for RadioHead RF95.
+#define RE_TX_RETRIES 0 // Number of retransmissions. 0 to transmit only once.
 #define RE_TX_TIMEOUT 100 // Time in milliseconds to timeout retransmission.
 #define MESH_ARP_TIMEOUT 100 // Time in milliseconds to timeout route resolving.
 #define MAX_CHUNK_QUEUE_SIZE 20 // The size of the queue store Chunks to be sent.
@@ -41,4 +41,7 @@
 #define MSG_INIT_FAILED "Initialisation failed"
 #define MSG_WHOAMI "I am address " STR(MESH_ADDRESS)
 
+
+#define SONAR_FRONT_TRIG 9
+#define SONAR_FRONT_ECHO 10
 #endif
