@@ -68,8 +68,6 @@ namespace SerialParser {
         bool awaitingPackets;
         uint8_t buffer[MAX_CHUNK_SIZE];
     public:
-     uint16_t currentLength;
-        uint16_t desiredLength;
    
         SerialParser();
 
