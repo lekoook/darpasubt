@@ -8,6 +8,10 @@
 #include <main.h>
 #include <SerialParser.h>
 #include <LoraPacket.h>
+#include <FreeRTOS_TEENSY4.h>
+#include "ThermalImager.h"
+#include <Wire.h>
+#include <Arduino.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
@@ -85,24 +89,62 @@ Transport::Transport transporter(MESH_ADDRESS, &mesh_manager);
 Chunk::Chunk recv_chunk;
 
 
+//Thermal cam params
+#define addrFront 0x33
+#define addrTop 0x33
+paramsMLX90640 paramsFront;
+paramsMLX90640 paramsTop;
+static float resultFront[768];
+static float resultTop[768];
+
 void setup() 
 {
     SHOW_SERIAL.begin(SERIAL_BAUD_RATE);
+    // while (!mesh_manager.init()) {}
+    // config_network(&driver, &mesh_manager);
 
-    while (!mesh_manager.init()) {}
-    config_network(&driver, &mesh_manager);
-
-    #ifdef DEBUG_PRINT
-    SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
-    SHOW_SERIAL.println(F(MSG_WHOAMI));
-    #endif
-
-    pinMode(LED_BUILTIN, OUTPUT);
+    // #ifdef DEBUG_PRINT
+    // SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
+    // SHOW_SERIAL.println(F(MSG_WHOAMI));
+    // #endif
+   
+    // pinMode(LED_BUILTIN, OUTPUT);
 }
+int count = 0;
+bool runonce = true;
 
 void loop()
-{
-    static int count;
+{   
+    // if (runonce) {
+    //     setupThermal(addrFront);
+    //     getEeparams(addrFront, &paramsFront);
+    // }
+    // uint16_t eedata[832];
+    // for (int i = 0; i < 832; i++) {
+    //     eedata[i] = 0;
+    // }
+    // MLX90640_DumpEE(0x33, eedata);
+    // getFrameData(addrFront, &paramsFront, resultFront);
+    // for (int i = 0; i < 832; i++) {
+    //     Serial.println(resultFront[i]);
+    // }
+    // delay(500);
+
+    if (runonce) {
+        count++;
+        // Serial.print("count ");
+        // Serial.println(count);
+        runonce = false;
+        Serial.println("setting up thermal");
+        setupThermal((uint8_t)addrFront); 
+        getEeparams((uint8_t)addrFront, &paramsFront);
+        Serial.println(paramsFront.kVdd);
+    }
+    getFrameData((uint8_t)addrFront, &paramsFront, resultFront);
+    uint8_t asciiRes[768];
+    floatToUint8(resultFront, asciiRes);
+    pubThermal(asciiRes);
+
     serial_spin();
     
     transporter.process_send_queue();
@@ -231,3 +273,4 @@ uint32_t int_to_str(char* str, int32_t integer)
 {
     return (uint32_t) sprintf(str, "%ld", integer);
 }
+
