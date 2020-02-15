@@ -3,16 +3,27 @@
 
 #include <stdint.h>
 #include <Chunk.h>
+#include <PWMServo.h>
 
 #define MAX_CHUNK_SIZE 240
 
-namespace SerialParser{
+namespace SerialParser {
+
+#define SERVO0_PIN 2
+#define SERVO1_PIN 3
+	extern PWMServo Servo0;
+	extern PWMServo Servo1;
+
+	void drop_communication_node(uint8_t device);
+	void setup_servos();
+
     enum class ParserState {
         PACKET_INCOMPLETE,
         PACKET_READY,
         ERROR,
-        AWAITING_PACKET
-    };
+        AWAITING_PACKET, // actually waiting for first packet only
+		AWAITING_DROP_ID
+	};
     enum class SerialResponseMessageType: uint8_t {
         PACKET_RECIEVED = 0xFA,
         PACKET_SENT = 0xFB,
@@ -22,6 +33,7 @@ namespace SerialParser{
         THERMAL_FRONT = 0xFF,
         THERMAL_TOP = 0xF1,
         DEBUG = 0xF2,
+		DROP_NODE = 0xF5,
         PHYSICAL_ADDRESS = 0xF0,
         SONAR_FRONT = 0xF3,
         SONAR_BOTTOM = 0xF4
@@ -44,15 +56,18 @@ namespace SerialParser{
         uint16_t range;
         SonarReading(SonarLocation _sonarLocation, uint16_t _range): sonarLocation(_sonarLocation), range(_range) {};
     };
+
     /**
      * Serial Parser protocol: 
      */ 
     class SerialParser {
+		SerialResponseMessageType messageType;
+		ParserState parserState;
+        uint16_t desiredLength;
+        uint16_t currentLength;
         bool awaitingPackets;
         uint8_t buffer[MAX_CHUNK_SIZE];
     public:
-     uint16_t currentLength;
-        uint16_t desiredLength;
    
         SerialParser();
 
@@ -85,6 +100,7 @@ namespace SerialParser{
         int length;
     public:
         SerialResponsePacket(Chunk::Chunk chunk);
+        SerialResponsePacket(uint16_t concentration, float humidity, float temperature);
         SerialResponsePacket(LoraStatusReady statusReady);
         SerialResponsePacket(MeshAddress meshaddress);
         SerialResponsePacket(SonarReading sonarReading);
@@ -92,6 +108,6 @@ namespace SerialParser{
         uint8_t* serialize();
         int getLength();
     };
-}
+   }
 
 #endif

@@ -2,21 +2,21 @@
 
 #include <RH_RF95.h>
 #include <RHMesh.h>
-#include <SoftwareSerial.h>
 #include <common.h>
 #include <Transport.h>
 #include <main.h>
-#include <SerialParser.h>
 #include <LoraPacket.h>
 #include <FreeRTOS_TEENSY4.h>
-#include "ThermalImager.h"
+#include <SparkFun_SCD30_Arduino_Library.h>
+#include <SoftwareSerial.h>
+#include <SerialParser.h>
+#include <ThermalImager.h>
 #include <Wire.h>
 #include <Arduino.h>
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
-
 
 
 #ifdef USE_SOFTWARE_SERIAL
@@ -97,18 +97,33 @@ paramsMLX90640 paramsTop;
 static float resultFront[768];
 static float resultTop[768];
 
+// CO2 sensor
+SCD30 airSensor;
+
+// measurement interval in seconds >= 1
+#define AIR_MEAS_INTERVAL 2 
+
 void setup() 
 {
     SHOW_SERIAL.begin(SERIAL_BAUD_RATE);
-    // while (!mesh_manager.init()) {}
-    // config_network(&driver, &mesh_manager);
 
-    // #ifdef DEBUG_PRINT
-    // SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
-    // SHOW_SERIAL.println(F(MSG_WHOAMI));
-    // #endif
-   
-    // pinMode(LED_BUILTIN, OUTPUT);
+    while (!mesh_manager.init()) {}
+    config_network(&driver, &mesh_manager);
+
+    #ifdef DEBUG_PRINT
+    SHOW_SERIAL.println(F(MSG_INIT_SUCCESS));
+    SHOW_SERIAL.println(F(MSG_WHOAMI));
+    #endif
+
+    pinMode(LED_BUILTIN, OUTPUT);
+
+	// CO2 sensor setup
+	Wire.begin();
+	airSensor.begin();
+	airSensor.setMeasurementInterval(AIR_MEAS_INTERVAL);
+	
+	// drop node setup
+	SerialParser::setup_servos();
 }
 int count = 0;
 bool runonce = true;
@@ -163,6 +178,22 @@ void loop()
     if(count%8 == 0) {
         sendAddress();
     }
+
+	// CO2, humidity and temperature measurements
+	if(airSensor.dataAvailable()) {
+	 // Copy over the payload.
+		SerialParser::SerialResponsePacket  packet(airSensor.getCO2(), airSensor.getHumidity(), airSensor.getTemperature());
+		uint8_t* serialPacket = packet.serialize();
+		int length = packet.getLength();
+		if(Serial.dtr()) {
+			Serial.write(serialPacket, length);
+		}
+	} else {
+		Serial.println("no data from sensor");
+	}
+		
+	//delay(1000);
+
 
 }
 
