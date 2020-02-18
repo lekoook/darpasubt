@@ -57,6 +57,7 @@ typedef struct
   WheelPosition_t wheelPos;
   double radius;
   double servCalib;
+  double circumf;
 } WheelParams_t;
 
 typedef struct

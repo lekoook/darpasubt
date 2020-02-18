@@ -118,6 +118,21 @@ int Encoder::getDistance(void)
 }
 
 /**
+ * @brief Returns the total number of ticks that have elapsed since the last call of this function.
+ * @details This function must be called regularly such that totalTicksCount would not overflow.
+ * 
+ * @return long The total ticks count.
+ */
+long Encoder::getTotalTicks(void)
+{
+  long count = this->totalTicksCount;
+
+  this->totalTicksCount = 0;
+  
+  return count;
+}
+
+/**
  * @brief Utility function to figure out the bit shifting required given the pin and it's port.
  * 
  * @param pin The physical pin number.

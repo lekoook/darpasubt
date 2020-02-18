@@ -7,3 +7,11 @@ int32 wheelA
 int32 wheelB
 int32 wheelC
 int32 wheelD
+float64 wheelAx
+float64 wheelAy
+float64 wheelBx
+float64 wheelBy
+float64 wheelCx
+float64 wheelCy
+float64 wheelDx
+float64 wheelDy

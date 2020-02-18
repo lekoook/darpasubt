@@ -42,6 +42,7 @@ void handleParamErr(uint16_t err);
 void twistCb(const geometry_msgs::Twist& twistMsg);
 void handleTwist(void);
 void pidCb(const geometry_msgs::Point& pidMsg);
+void computeWheelsPos(void);
 
 // All global variables.
 Motor motorA(MOTOR_A_DIR_PIN, MOTOR_A_PWM_PIN);
@@ -108,6 +109,14 @@ long encoderASpd = 0;
 long encoderBSpd = 0;
 long encoderCSpd = 0;
 long encoderDSpd = 0;
+double wheelAX = 0;
+double wheelAY = 0;
+double wheelBX = 0;
+double wheelBY = 0;
+double wheelCX = 0;
+double wheelCY = 0;
+double wheelDX = 0;
+double wheelDY = 0;
 
 void setup() {
   nh.initNode();
@@ -134,6 +143,7 @@ void loop() {
   {
     needAdjust = false;
     adjust();
+    computeWheelsPos();
     pubData();
   }
 
@@ -249,6 +259,14 @@ void pubData(void)
   odomMsg.wheelB = driveSet.driveUnitB.driveParams.steerAngle;
   odomMsg.wheelC = driveSet.driveUnitC.driveParams.steerAngle;
   odomMsg.wheelD = driveSet.driveUnitD.driveParams.steerAngle;
+  odomMsg.wheelAx = wheelAX;
+  odomMsg.wheelAy = wheelAY;
+  odomMsg.wheelBx = wheelBX;
+  odomMsg.wheelBy = wheelBY;
+  odomMsg.wheelCx = wheelCX;
+  odomMsg.wheelCy = wheelCY;
+  odomMsg.wheelDx = wheelDX;
+  odomMsg.wheelDy = wheelDY;
   odomPub.publish(&odomMsg);
 }
 
@@ -316,6 +334,7 @@ void initControlParams(void)
   driveSet.driveUnitA.wheelParams.wheelPos = WHEEL_POS_TOP_LEFT;
   driveSet.driveUnitA.wheelParams.radius = WHEEL_RADIUS;
   driveSet.driveUnitA.wheelParams.servCalib = SERVO_A_CALIB_VAL;
+  driveSet.driveUnitA.wheelParams.circumf = 2 * M_PI * WHEEL_RADIUS;
   driveSet.driveUnitA.driveParams.speed = 0;
   driveSet.driveUnitA.driveParams.steerAngle = 0;
   driveSet.driveUnitA.driveParams.posAngle = 90 + SERVO_A_CALIB_VAL;
@@ -323,6 +342,7 @@ void initControlParams(void)
   driveSet.driveUnitB.wheelParams.wheelPos = WHEEL_POS_TOP_RIGHT;
   driveSet.driveUnitB.wheelParams.radius = WHEEL_RADIUS;
   driveSet.driveUnitB.wheelParams.servCalib = SERVO_B_CALIB_VAL;
+  driveSet.driveUnitB.wheelParams.circumf = 2 * M_PI * WHEEL_RADIUS;
   driveSet.driveUnitB.driveParams.speed = 0;
   driveSet.driveUnitB.driveParams.steerAngle = 0;
   driveSet.driveUnitB.driveParams.posAngle = 90 + SERVO_B_CALIB_VAL;
@@ -330,6 +350,7 @@ void initControlParams(void)
   driveSet.driveUnitC.wheelParams.wheelPos = WHEEL_POS_BOTTOM_LEFT;
   driveSet.driveUnitC.wheelParams.radius = WHEEL_RADIUS;
   driveSet.driveUnitC.wheelParams.servCalib = SERVO_C_CALIB_VAL;
+  driveSet.driveUnitC.wheelParams.circumf = 2 * M_PI * WHEEL_RADIUS;
   driveSet.driveUnitC.driveParams.speed = 0;
   driveSet.driveUnitC.driveParams.steerAngle = 0;
   driveSet.driveUnitC.driveParams.posAngle = 90 + SERVO_C_CALIB_VAL;
@@ -337,6 +358,7 @@ void initControlParams(void)
   driveSet.driveUnitD.wheelParams.wheelPos = WHEEL_POS_BOTTOM_RIGHT;
   driveSet.driveUnitD.wheelParams.radius = WHEEL_RADIUS;
   driveSet.driveUnitD.wheelParams.servCalib = SERVO_D_CALIB_VAL;
+  driveSet.driveUnitD.wheelParams.circumf = 2 * M_PI * WHEEL_RADIUS;
   driveSet.driveUnitD.driveParams.speed = 0;
   driveSet.driveUnitD.driveParams.steerAngle = 0;
   driveSet.driveUnitD.driveParams.posAngle = 90 + SERVO_D_CALIB_VAL;
@@ -478,4 +500,27 @@ void handleTwist(void)
     turnServos();
     turnWheels();
   }
+}
+
+void computeWheelsPos(void)
+{
+  long wheelATicks = encoderA.getTotalTicks();
+  double steerAngleA = driveSet.driveUnitA.driveParams.steerAngle * DEG_TO_RAD;
+  wheelAX += driveSet.driveUnitA.wheelParams.circumf * wheelATicks * cos(steerAngleA);
+  wheelAY += driveSet.driveUnitA.wheelParams.circumf * wheelATicks * sin(steerAngleA);
+  
+  long wheelBTicks = encoderB.getTotalTicks();
+  double steerAngleB = driveSet.driveUnitB.driveParams.steerAngle * DEG_TO_RAD;
+  wheelBX += driveSet.driveUnitB.wheelParams.circumf * wheelBTicks * cos(steerAngleB);
+  wheelBY += driveSet.driveUnitB.wheelParams.circumf * wheelBTicks * sin(steerAngleB);
+  
+  long wheelCTicks = encoderC.getTotalTicks();
+  double steerAngleC = driveSet.driveUnitC.driveParams.steerAngle * DEG_TO_RAD;
+  wheelCX += driveSet.driveUnitC.wheelParams.circumf * wheelCTicks * cos(steerAngleC);
+  wheelCY += driveSet.driveUnitC.wheelParams.circumf * wheelCTicks * sin(steerAngleC);
+
+  long wheelDTicks = encoderD.getTotalTicks();
+  double steerAngleD = driveSet.driveUnitD.driveParams.steerAngle * DEG_TO_RAD;
+  wheelDX += driveSet.driveUnitD.wheelParams.circumf * wheelDTicks * cos(steerAngleD);
+  wheelDY += driveSet.driveUnitD.wheelParams.circumf * wheelDTicks * sin(steerAngleD);
 }

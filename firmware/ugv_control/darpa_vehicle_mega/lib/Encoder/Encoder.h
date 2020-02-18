@@ -31,6 +31,7 @@ class Encoder
     void updateCount(void);
     long getSpeed(void);
     int getDistance(void);
+    long getTotalTicks(void);
 
   private:
     uint8_t checkRegShift(uint8_t pin, ENCODER_PIN_ADDR_t pinPort);
