@@ -44,7 +44,7 @@ void setup () {
     for (int i = 0; i < NUM_SERVOS; i++)
     {
         servosArr[i].attach(servosPin[i]);
-        servosArr[i].write(0);
+        servosArr[i].write(60);
     }
 }
 
