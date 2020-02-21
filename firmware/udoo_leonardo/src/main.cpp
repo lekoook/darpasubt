@@ -1,17 +1,10 @@
-#define USE_USBCON
 #define NUM_SERVOS 3
 
 #include <HCSR04.h>
-#include <ros.h>
-#include <sensor_msgs/Range.h>
-#include <std_msgs/UInt16.h>
 #include <math.h>
 #include <Wire.h>
 #include "SparkFun_SCD30_Arduino_Library.h"
-#include <Dropper.h>
 #include <Servo.h>
-
-void dropperCb(const vehicle_drive::Dropper& angles);
 
 sensor_msgs::Range rangeMsg;
 //std_msgs::UInt16 co2Msg;
@@ -24,14 +17,6 @@ UltraSonicDistanceSensor distanceSensor(11, 12);
 
 Servo servosArr[NUM_SERVOS];
 int servosPin[NUM_SERVOS] = {5, 6, 9};
-
-void dropperCb(const vehicle_drive::Dropper& angles)
-{
-    for (int i = 0; i < NUM_SERVOS; i++)
-    {
-        servosArr[i].write(angles.dropper_angles[i]);
-    }
-}
 
 void setup () {
     nh.initNode();
@@ -46,6 +31,7 @@ void setup () {
         servosArr[i].attach(servosPin[i]);
         servosArr[i].write(60);
     }
+
 }
 
 void loop () {
@@ -63,8 +49,8 @@ void loop () {
 /*
     if (airSensor.dataAvailable())
     {
-        co2Msg.data = airSensor.getCO2();
-        co2Pub.publish(&co2Msg);
+	double co2 = airSensor.getCO2();
+        Serial.println(co2);
     }
 */    
     nh.spinOnce();
