@@ -14,13 +14,13 @@
 void dropperCb(const vehicle_drive::Dropper& angles);
 
 sensor_msgs::Range rangeMsg;
-std_msgs::UInt16 co2Msg;
+//std_msgs::UInt16 co2Msg;
 ros::NodeHandle nh;
 ros::Publisher rangePub("ultrasonic", &rangeMsg);
-ros::Publisher co2Pub("co2", &co2Msg);
+//ros::Publisher co2Pub("co2", &co2Msg);
 ros::Subscriber<vehicle_drive::Dropper> droppersPub("droppers", dropperCb);
-UltraSonicDistanceSensor distanceSensor(0, 1);
-SCD30 airSensor;
+UltraSonicDistanceSensor distanceSensor(11, 12);
+//SCD30 airSensor;
 
 Servo servosArr[NUM_SERVOS];
 int servosPin[NUM_SERVOS] = {5, 6, 9};
@@ -36,10 +36,10 @@ void dropperCb(const vehicle_drive::Dropper& angles)
 void setup () {
     nh.initNode();
     nh.advertise(rangePub);
-    nh.advertise(co2Pub);
+//    nh.advertise(co2Pub);
     nh.subscribe(droppersPub);
-    Wire.begin();
-    airSensor.begin();
+//    Wire.begin();
+//    airSensor.begin();
 
     for (int i = 0; i < NUM_SERVOS; i++)
     {
@@ -60,13 +60,13 @@ void loop () {
     }
     rangeMsg.range = dist;
     rangePub.publish(&rangeMsg);
-
+/*
     if (airSensor.dataAvailable())
     {
         co2Msg.data = airSensor.getCO2();
         co2Pub.publish(&co2Msg);
     }
-    
+*/    
     nh.spinOnce();
     delay(100);
 }

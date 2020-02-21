@@ -13,7 +13,7 @@ namespace vehicle_drive
   {
     public:
       uint32_t dropper_angles_length;
-      typedef float _dropper_angles_type;
+      typedef uint8_t _dropper_angles_type;
       _dropper_angles_type st_dropper_angles;
       _dropper_angles_type * dropper_angles;
 
@@ -31,15 +31,7 @@ namespace vehicle_drive
       *(outbuffer + offset + 3) = (this->dropper_angles_length >> (8 * 3)) & 0xFF;
       offset += sizeof(this->dropper_angles_length);
       for( uint32_t i = 0; i < dropper_angles_length; i++){
-      union {
-        float real;
-        uint32_t base;
-      } u_dropper_anglesi;
-      u_dropper_anglesi.real = this->dropper_angles[i];
-      *(outbuffer + offset + 0) = (u_dropper_anglesi.base >> (8 * 0)) & 0xFF;
-      *(outbuffer + offset + 1) = (u_dropper_anglesi.base >> (8 * 1)) & 0xFF;
-      *(outbuffer + offset + 2) = (u_dropper_anglesi.base >> (8 * 2)) & 0xFF;
-      *(outbuffer + offset + 3) = (u_dropper_anglesi.base >> (8 * 3)) & 0xFF;
+      *(outbuffer + offset + 0) = (this->dropper_angles[i] >> (8 * 0)) & 0xFF;
       offset += sizeof(this->dropper_angles[i]);
       }
       return offset;
@@ -54,27 +46,18 @@ namespace vehicle_drive
       dropper_angles_lengthT |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3); 
       offset += sizeof(this->dropper_angles_length);
       if(dropper_angles_lengthT > dropper_angles_length)
-        this->dropper_angles = (float*)realloc(this->dropper_angles, dropper_angles_lengthT * sizeof(float));
+        this->dropper_angles = (uint8_t*)realloc(this->dropper_angles, dropper_angles_lengthT * sizeof(uint8_t));
       dropper_angles_length = dropper_angles_lengthT;
       for( uint32_t i = 0; i < dropper_angles_length; i++){
-      union {
-        float real;
-        uint32_t base;
-      } u_st_dropper_angles;
-      u_st_dropper_angles.base = 0;
-      u_st_dropper_angles.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      u_st_dropper_angles.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
-      u_st_dropper_angles.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
-      u_st_dropper_angles.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
-      this->st_dropper_angles = u_st_dropper_angles.real;
+      this->st_dropper_angles =  ((uint8_t) (*(inbuffer + offset)));
       offset += sizeof(this->st_dropper_angles);
-        memcpy( &(this->dropper_angles[i]), &(this->st_dropper_angles), sizeof(float));
+        memcpy( &(this->dropper_angles[i]), &(this->st_dropper_angles), sizeof(uint8_t));
       }
      return offset;
     }
 
     const char * getType(){ return "vehicle_drive/Dropper"; };
-    const char * getMD5(){ return "be31628126d0f62b4badf43a278567de"; };
+    const char * getMD5(){ return "632290e64ddf4d9a92b02ad7583e184e"; };
 
   };
 
